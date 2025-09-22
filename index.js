@@ -12,12 +12,42 @@ const sleep = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
 // --- Main Program Setup ---
 const program = new Command();
 
-// Display a cool welcome banner every time the CLI runs
-console.log(
-  chalk.cyan(figlet.textSync("Cool CLI", { horizontalLayout: "full" }))
-);
+// ---- Banner / Logo Rendering ----
+// Provide an Ubuntu/Debian-inspired stylized logo.
+function renderBanner() {
+  const swirl = [
+    chalk.red("    /////////////\\\\\\\\\\\\\\\\"),
+    chalk.red("   ////  Raze Swirl  \\\\\\\\   ( )"),
+    chalk.red("  ////  / / / / / / /  \\\\  / /"),
+    chalk.red("  \\\\  \\ \\ \\ \\ \\ \\ \\  ////_/ /"),
+    chalk.red("   \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/_/"),
+  ];
 
-program.version("1.0.0").description("An example of a beautiful and cool CLI");
+  const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
+
+  // Apply a soft gradient (magenta -> violet -> cyan) across lines
+  const palette = [
+    chalk.magentaBright,
+    chalk.hex("#d147ff"),
+    chalk.hex("#a470ff"),
+    chalk.cyanBright,
+  ];
+  const coloredBlock = block.map((line, i) =>
+    palette[i % palette.length](line)
+  );
+
+  console.log(swirl.join("\n"));
+  console.log(coloredBlock.join("\n"));
+  console.log(
+    chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
+  );
+}
+
+program
+  .name("raze")
+  .version("1.0.0")
+  .option("--no-banner", "Hide the startup banner (for scripts/CI)")
+  .description("An example of a beautiful and cool CLI");
 
 // --- Command 1: A command with a spinner ---
 program
@@ -81,4 +111,13 @@ program
   });
 
 // This line is essential for parsing the arguments and executing the commands
+// Peek for --no-banner before parsing (so we don't need a preliminary parse pass)
+if (!process.argv.includes("--no-banner")) {
+  try {
+    renderBanner();
+  } catch (e) {
+    /* fail silently for non-TTY */
+  }
+}
+
 program.parse(process.argv);
