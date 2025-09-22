@@ -68,7 +68,8 @@ program
   .option("--model <model>", "Model to use", "gemini-1.5-flash-latest")
   .action(async (promptParts, opts) => {
     // Prefer environment variable; fallback only for local testing (not recommended).
-    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
+    const apiKey =
+      process.env.GEMINI_API_KEY || "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
     if (!apiKey) {
       console.error(
         chalk.red(
@@ -80,9 +81,12 @@ program
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:generateContent?key=${apiKey}`;
 
-    let prompt = promptParts && promptParts.length ? promptParts.join(" ") : undefined;
+    let prompt =
+      promptParts && promptParts.length ? promptParts.join(" ") : undefined;
     if (!prompt) {
-      const answers = await inquirer.prompt([{ name: "q", message: "Enter prompt:" }]);
+      const answers = await inquirer.prompt([
+        { name: "q", message: "Enter prompt:" },
+      ]);
       prompt = answers.q;
     }
 
@@ -112,7 +116,9 @@ program
       if (!res.ok) {
         const errText = await res.text();
         spinner.fail();
-        console.error(chalk.red(`AI request failed (${res.status}): ${errText}`));
+        console.error(
+          chalk.red(`AI request failed (${res.status}): ${errText}`)
+        );
         return;
       }
 
@@ -125,7 +131,9 @@ program
       if (out) {
         console.log(out);
       } else {
-        console.log(chalk.yellow("Could not parse response, showing raw JSON:"));
+        console.log(
+          chalk.yellow("Could not parse response, showing raw JSON:")
+        );
         console.log(JSON.stringify(data, null, 2));
       }
       console.log(chalk.cyan.bold("--- End Response ---"));
@@ -308,7 +316,11 @@ program
         prompt: chalk.green("raze> "),
       });
 
-      console.log(chalk.gray('Entering interactive session. Type "help" for commands, "exit" to quit.'));
+      console.log(
+        chalk.gray(
+          'Entering interactive session. Type "help" for commands, "exit" to quit.'
+        )
+      );
       rl.prompt();
 
       rl.on("line", async (line) => {
@@ -336,11 +348,14 @@ program
         } catch (err) {
           // Commander throws on unknown commands because of exitOverride().
           // Don't exit the REPL — report error and continue.
-          if (err && typeof err.exitCode === 'number') {
+          if (err && typeof err.exitCode === "number") {
             // Known commander exit (like missing required arg). Print the message.
             console.error(chalk.red(err.message));
           } else {
-            console.error(chalk.red("Error executing command:"), err.message || err);
+            console.error(
+              chalk.red("Error executing command:"),
+              err.message || err
+            );
           }
         }
         rl.prompt();
