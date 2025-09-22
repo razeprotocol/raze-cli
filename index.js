@@ -74,13 +74,16 @@ async function renderAnimatedBanner() {
     .split("\n");
   const palette = [
     chalk.magentaBright,
-    chalk.hex("#d147ff"),
-    chalk.hex("#a470ff"),
+    chalk.hex("#ff6021ff"),
+    chalk.hex("#ffa455ff"),
     chalk.cyanBright,
   ];
   const coloredBlock = blockLines.map((l, i) => palette[i % palette.length](l));
   for (let i = 0; i < frames.length; i++) {
-    process.stdout.write("\x1b[2J\x1b[0;0H"); // clear screen
+    // Use console.clear() for cross-platform clearing. Some Windows shells
+    // don't honor the manual escape sequence used previously which caused
+    // each frame to be appended instead of replacing the previous output.
+    console.clear();
     console.log(chalk.red(frames[i]));
     console.log(coloredBlock.join("\n"));
     console.log(
@@ -164,14 +167,12 @@ program
 (async () => {
   const argv = process.argv;
   const hideBanner = argv.includes("--no-banner");
-  const noAnim = argv.includes("--no-anim");
+  // User asked for no animation — always show the static swirl + colored RAZE
+  // unless --no-banner is provided. Keep try/catch to avoid crashing on edge
+  // cases (e.g., figlet/font loading issues).
   if (!hideBanner) {
     try {
-      if (!noAnim) {
-        await renderAnimatedBanner();
-      } else {
-        renderStaticBlock();
-      }
+      renderStaticBlock();
     } catch (_) {
       /* ignore */
     }
