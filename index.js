@@ -41,17 +41,18 @@ ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
 
   const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
 
-  // Apply a soft gradient (magenta -> violet -> cyan) across lines
+  // Use orange and gray (no forced background colors)
   const palette = [
     chalk.magentaBright,
-    chalk.hex("#ff7038ff"),
-    chalk.hex("#ffffffff"),
+    chalk.hex("#d147ff"),
+    chalk.hex("#a470ff"),
     chalk.cyanBright,
   ];
   const coloredBlock = block.map((line, i) =>
     palette[i % palette.length](line)
   );
-  console.log(swirl);
+  // Print swirl in gray (no forced background)
+  console.log(chalk.gray(swirl));
   console.log(coloredBlock.join("\n"));
   console.log(
     chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
@@ -74,8 +75,8 @@ async function renderAnimatedBanner() {
     .split("\n");
   const palette = [
     chalk.magentaBright,
-    chalk.hex("#ff6021ff"),
-    chalk.hex("#ffa455ff"),
+    chalk.hex("#d147ff"),
+    chalk.hex("#a470ff"),
     chalk.cyanBright,
   ];
   const coloredBlock = blockLines.map((l, i) => palette[i % palette.length](l));
@@ -84,7 +85,8 @@ async function renderAnimatedBanner() {
     // don't honor the manual escape sequence used previously which caused
     // each frame to be appended instead of replacing the previous output.
     console.clear();
-    console.log(chalk.red(frames[i]));
+    // Show small decorative frames in gray (no forced background)
+    console.log(chalk.gray(frames[i]));
     console.log(coloredBlock.join("\n"));
     console.log(
       chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
