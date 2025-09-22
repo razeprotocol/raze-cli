@@ -67,42 +67,37 @@ program
   .argument("[prompt...]", "Prompt to send to the model")
   .option("--model <model>", "Model to use", "gemini-1.5-flash-latest")
   .action(async (promptParts, opts) => {
-    // SECURITY: do NOT hardcode API keys in your source. Set GEMINI_API_KEY in env.
-    const apiKey = "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA"; // It's better to read from env
+    // Prefer environment variable; fallback only for local testing (not recommended).
+    const apiKey = process.env.GEMINI_API_KEY || "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
     if (!apiKey) {
       console.error(
         chalk.red(
           "GEMINI_API_KEY is not set. Export your key as an environment variable (do NOT commit it to source)."
         )
       );
-      process.exit(1);
+      return; // return instead of exiting so REPL can continue
     }
 
-    // Default guessed endpoint for Google's Generative Language API.
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:generateContent?key=${apiKey}`;
 
-    let prompt =
-      promptParts && promptParts.length ? promptParts.join(" ") : undefined;
+    let prompt = promptParts && promptParts.length ? promptParts.join(" ") : undefined;
     if (!prompt) {
-      const answers = await inquirer.prompt([
-        { name: "q", message: "Enter prompt:" },
-      ]);
+      const answers = await inquirer.prompt([{ name: "q", message: "Enter prompt:" }]);
       prompt = answers.q;
     }
 
     if (!prompt) {
       console.error(chalk.red("No prompt provided."));
-      process.exit(1);
+      return;
     }
 
-    // Use global fetch (Node 18+). If unavailable, this will fail and instruct the user.
     if (typeof fetch !== "function") {
       console.error(
         chalk.red(
           "Global fetch() is not available in your Node runtime. Use Node 18+ or install a fetch polyfill."
         )
       );
-      process.exit(1);
+      return;
     }
 
     const spinner = ora("AI is thinking...").start();
@@ -110,44 +105,34 @@ program
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // CORRECTED: The body structure must match the Gemini API requirements.
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       });
 
       if (!res.ok) {
         const errText = await res.text();
         spinner.fail();
-        console.error(
-          chalk.red(`AI request failed (${res.status}): ${errText}`)
-        );
-        process.exit(1);
+        console.error(chalk.red(`AI request failed (${res.status}): ${errText}`));
+        return;
       }
 
       const data = await res.json();
       spinner.succeed(chalk.green("AI responded!"));
 
-      // CORRECTED: Safely parse the response according to the Gemini API schema.
       const out = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
       console.log("\n" + chalk.cyan.bold("--- AI Response ---"));
       if (out) {
         console.log(out);
       } else {
-        console.log(
-          chalk.yellow("Could not parse response, showing raw JSON:")
-        );
+        console.log(chalk.yellow("Could not parse response, showing raw JSON:"));
         console.log(JSON.stringify(data, null, 2));
       }
       console.log(chalk.cyan.bold("--- End Response ---"));
     } catch (err) {
       spinner.fail();
       console.error(chalk.red("AI request failed:"), err.message || err);
-      process.exit(1);
+      return;
     }
   });
 
@@ -189,6 +174,9 @@ program
   .option("--no-banner", "Hide the startup banner (for scripts/CI)")
   .option("--no-anim", "Disable banner animation (still shows static banner)")
   .description("An example of a beautiful and cool CLI");
+
+// Make commander throw instead of calling process.exit — the REPL will catch errors and continue.
+program.exitOverride();
 
 // --- Command 1: A command with a spinner ---
 program
@@ -311,7 +299,7 @@ program
     .action(async () => {
       if (!process.stdin.isTTY) {
         console.log("Interactive session requires a TTY.");
-        process.exit(1);
+        return;
       }
 
       const rl = readline.createInterface({
@@ -320,11 +308,7 @@ program
         prompt: chalk.green("raze> "),
       });
 
-      console.log(
-        chalk.gray(
-          'Entering interactive session. Type "help" for commands, "exit" to quit.'
-        )
-      );
+      console.log(chalk.gray('Entering interactive session. Type "help" for commands, "exit" to quit.'));
       rl.prompt();
 
       rl.on("line", async (line) => {
@@ -350,10 +334,14 @@ program
         try {
           await program.parseAsync(fakeArgv);
         } catch (err) {
-          console.error(
-            chalk.red("Error executing command:"),
-            err.message || err
-          );
+          // Commander throws on unknown commands because of exitOverride().
+          // Don't exit the REPL — report error and continue.
+          if (err && typeof err.exitCode === 'number') {
+            // Known commander exit (like missing required arg). Print the message.
+            console.error(chalk.red(err.message));
+          } else {
+            console.error(chalk.red("Error executing command:"), err.message || err);
+          }
         }
         rl.prompt();
       });
