@@ -5,6 +5,7 @@ import chalk from "chalk";
 import figlet from "figlet";
 import ora from "ora";
 import inquirer from "inquirer";
+import readline from "readline";
 
 // A simple utility function for creating a delay
 const sleep = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
@@ -260,5 +261,108 @@ program
       /* ignore */
     }
   }
-  program.parse(argv);
+  // Helper: split a typed command line into argv-style tokens.
+  // Simple port of npm's `string-argv` logic to handle quoted strings.
+  function parseArgsStringToArgv(str) {
+    const args = [];
+    let current = "";
+    let i = 0;
+    let inSingle = false;
+    let inDouble = false;
+    while (i < str.length) {
+      const ch = str[i];
+      if (ch === "'" && !inDouble) {
+        inSingle = !inSingle;
+        i++;
+        continue;
+      }
+      if (ch === '"' && !inSingle) {
+        inDouble = !inDouble;
+        i++;
+        continue;
+      }
+      if (ch === " " && !inSingle && !inDouble) {
+        if (current.length) {
+          args.push(current);
+          current = "";
+        }
+        i++;
+        continue;
+      }
+      if (ch === "\\" && i + 1 < str.length) {
+        // handle simple escape
+        current += str[i + 1];
+        i += 2;
+        continue;
+      }
+      current += ch;
+      i++;
+    }
+    if (current.length) args.push(current);
+    return args;
+  }
+
+  // Interactive 'start' session: allow running subcommands without typing the `raze` prefix.
+  program
+    .command("start")
+    .description(
+      "Start an interactive session. Type commands (load, style, ask, ai, help, exit) without prefix."
+    )
+    .action(async () => {
+      if (!process.stdin.isTTY) {
+        console.log("Interactive session requires a TTY.");
+        process.exit(1);
+      }
+
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+        prompt: chalk.green("raze> "),
+      });
+
+      console.log(
+        chalk.gray(
+          'Entering interactive session. Type "help" for commands, "exit" to quit.'
+        )
+      );
+      rl.prompt();
+
+      rl.on("line", async (line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          rl.prompt();
+          return;
+        }
+        if (trimmed === "exit" || trimmed === "quit") {
+          rl.close();
+          return;
+        }
+        if (trimmed === "help") {
+          program.outputHelp();
+          rl.prompt();
+          return;
+        }
+
+        // Parse the line into argv-like array and dispatch to commander
+        const parts = parseArgsStringToArgv(trimmed);
+        // Build argv like: [node, script, ...parts]
+        const fakeArgv = [process.argv[0], process.argv[1], ...parts];
+        try {
+          await program.parseAsync(fakeArgv);
+        } catch (err) {
+          console.error(
+            chalk.red("Error executing command:"),
+            err.message || err
+          );
+        }
+        rl.prompt();
+      });
+
+      rl.on("close", () => {
+        console.log(chalk.gray("Goodbye."));
+        process.exit(0);
+      });
+    });
+
+  program.parse(process.argv);
 })();
