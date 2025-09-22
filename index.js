@@ -14,39 +14,87 @@ const program = new Command();
 
 // ---- Banner / Logo Rendering ----
 // Provide an Ubuntu/Debian-inspired stylized logo.
-function renderBanner() {
-  const swirl = [
-    chalk.red("    /////////////\\\\\\\\\\\\\\\\"),
-    chalk.red("   ////  Raze Swirl  \\\\\\\\   ( )"),
-    chalk.red("  ////  / / / / / / /  \\\\  / /"),
-    chalk.red("  \\\\  \\ \\ \\ \\ \\ \\ \\  ////_/ /"),
-    chalk.red("   \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\/_/"),
-  ];
+function renderStaticBlock() {
+  const swirl = `
+              .,;::::,..
+          .:'';lllllc'........
+       .:'lkkkkkkkkkkkkkkkkkkkk:...
+     .:kkkkkkkkkkkkkkkkkkkkkkkkkkkdc.
+    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx,
+   .ckkkkkkkkkkkkkkko:'...':okkkkkkkko.
+  .okkkkkkkkkkkkkk:.         'okkkkkkko.
+ .:kkkkkkkkkkkkkkc             ckkkkkkkd.
+.okkkkkkkkkkkkkkkc             ckkkkkkkko.
+ckkkkkkkkkkkkkkkk:             ckkkkkkkkko
+okkkkkkkkkkkkkkkk:             ckkkkkkkkko
+ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
+'okkkkkkkkkkkkkkko.           .okkkkkkkkko
+.dkkkkkkkkkkkkkkkd.          .okkkkkkkkkk,
+ .:kkkkkkkkkkkkkkkkc.      .:okkkkkkkkkkd.
+  .okkkkkkkkkkkkkkkkkc.  .:okkkkkkkkkkko.
+   .lkkkkkkkkkkkkkkkkkkxookkkkkkkkkkkko.
+    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
+     .':oxkkkkkkkkkkkkkkkkkkkkkkkkxo,
+         ..';:cloxkOOkkxooc:;'..
+               ..,;;;,,..
+`;
 
   const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
 
   // Apply a soft gradient (magenta -> violet -> cyan) across lines
   const palette = [
     chalk.magentaBright,
-    chalk.hex("#d147ff"),
-    chalk.hex("#a470ff"),
+    chalk.hex("#ff7038ff"),
+    chalk.hex("#ffffffff"),
     chalk.cyanBright,
   ];
   const coloredBlock = block.map((line, i) =>
     palette[i % palette.length](line)
   );
-
-  console.log(swirl.join("\n"));
+  console.log(swirl);
   console.log(coloredBlock.join("\n"));
   console.log(
     chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
   );
 }
 
+async function renderAnimatedBanner() {
+  if (!process.stdout.isTTY) {
+    renderStaticBlock();
+    return;
+  }
+  const frames = [
+    "   .\n  .:;\n .:kk;\n .:kk;\n  .:;\n   .",
+    "    ..\n  .:ll:.\n .:kkkk:.\n .:kkkk:.\n  .:ll:.\n    ..",
+    "      ..\n   .:llll:.\n  .:kkkkkk:.\n  .:kkkkkk:.\n   .:llll:.\n      ..",
+    "        ..\n    .:lllll:.\n   .:kkkkkkkk:.\n   .:kkkkkkkk:.\n    .:lllll:.\n        ..",
+  ];
+  const blockLines = figlet
+    .textSync("RAZE", { font: "ANSI Shadow" })
+    .split("\n");
+  const palette = [
+    chalk.magentaBright,
+    chalk.hex("#d147ff"),
+    chalk.hex("#a470ff"),
+    chalk.cyanBright,
+  ];
+  const coloredBlock = blockLines.map((l, i) => palette[i % palette.length](l));
+  for (let i = 0; i < frames.length; i++) {
+    process.stdout.write("\x1b[2J\x1b[0;0H"); // clear screen
+    console.log(chalk.red(frames[i]));
+    console.log(coloredBlock.join("\n"));
+    console.log(
+      chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
+    );
+    await new Promise((r) => setTimeout(r, 120));
+  }
+}
+
 program
   .name("raze")
   .version("1.0.0")
   .option("--no-banner", "Hide the startup banner (for scripts/CI)")
+  .option("--no-anim", "Disable banner animation (still shows static banner)")
   .description("An example of a beautiful and cool CLI");
 
 // --- Command 1: A command with a spinner ---
@@ -112,12 +160,21 @@ program
 
 // This line is essential for parsing the arguments and executing the commands
 // Peek for --no-banner before parsing (so we don't need a preliminary parse pass)
-if (!process.argv.includes("--no-banner")) {
-  try {
-    renderBanner();
-  } catch (e) {
-    /* fail silently for non-TTY */
+// We need an async wrapper to allow optional animation before full parse.
+(async () => {
+  const argv = process.argv;
+  const hideBanner = argv.includes("--no-banner");
+  const noAnim = argv.includes("--no-anim");
+  if (!hideBanner) {
+    try {
+      if (!noAnim) {
+        await renderAnimatedBanner();
+      } else {
+        renderStaticBlock();
+      }
+    } catch (_) {
+      /* ignore */
+    }
   }
-}
-
-program.parse(process.argv);
+  program.parse(argv);
+})();
