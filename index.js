@@ -39,7 +39,9 @@ ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
                ..,;;;,,..
 `;
 
-  const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
+  const block = figlet
+    .textSync("RAZE CLI", { font: "ANSI Shadow" })
+    .split("\n");
 
   // Use orange and gray (no forced background colors)
   const palette = [
@@ -71,7 +73,7 @@ async function renderAnimatedBanner() {
     "        ..\n    .:lllll:.\n   .:kkkkkkkk:.\n   .:kkkkkkkk:.\n    .:lllll:.\n        ..",
   ];
   const blockLines = figlet
-    .textSync("RAZE", { font: "ANSI Shadow" })
+    .textSync("RAZE CLI", { font: "ANSI Shadow" })
     .split("\n");
   const palette = [
     chalk.magentaBright,
