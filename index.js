@@ -39,11 +39,9 @@ ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
                ..,;;;,,..
 `;
 
-  const block = figlet
-    .textSync("RAZE CLI", { font: "ANSI Shadow" })
-    .split("\n");
+  const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
 
-  // Use orange and gray (no forced background colors)
+  // Use the requested magenta/violet/cyan palette
   const palette = [
     chalk.magentaBright,
     chalk.hex("#d147ff"),
@@ -53,13 +51,104 @@ ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
   const coloredBlock = block.map((line, i) =>
     palette[i % palette.length](line)
   );
-  // Print swirl in gray (no forced background)
-  console.log(chalk.gray(swirl));
+  // Print swirl then colored block
+  console.log(swirl);
   console.log(coloredBlock.join("\n"));
   console.log(
     chalk.gray("Raze CLI — a minimal, fast, developer-friendly tool\n")
   );
 }
+
+// --- Command 4: AI via Gemini (HTTP) ---
+program
+  .command("ai")
+  .description("Query an AI model (Gemini). Reads GEMINI_API_KEY from env.")
+  .argument("[prompt...]", "Prompt to send to the model")
+  .option("--model <model>", "Model to use", "gemini-1.5-flash-latest")
+  .action(async (promptParts, opts) => {
+    // SECURITY: do NOT hardcode API keys in your source. Set GEMINI_API_KEY in env.
+    const apiKey = "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA"; // It's better to read from env
+    if (!apiKey) {
+      console.error(
+        chalk.red(
+          "GEMINI_API_KEY is not set. Export your key as an environment variable (do NOT commit it to source)."
+        )
+      );
+      process.exit(1);
+    }
+
+    // Default guessed endpoint for Google's Generative Language API.
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${opts.model}:generateContent?key=${apiKey}`;
+
+    let prompt =
+      promptParts && promptParts.length ? promptParts.join(" ") : undefined;
+    if (!prompt) {
+      const answers = await inquirer.prompt([
+        { name: "q", message: "Enter prompt:" },
+      ]);
+      prompt = answers.q;
+    }
+
+    if (!prompt) {
+      console.error(chalk.red("No prompt provided."));
+      process.exit(1);
+    }
+
+    // Use global fetch (Node 18+). If unavailable, this will fail and instruct the user.
+    if (typeof fetch !== "function") {
+      console.error(
+        chalk.red(
+          "Global fetch() is not available in your Node runtime. Use Node 18+ or install a fetch polyfill."
+        )
+      );
+      process.exit(1);
+    }
+
+    const spinner = ora("AI is thinking...").start();
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // CORRECTED: The body structure must match the Gemini API requirements.
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        spinner.fail();
+        console.error(
+          chalk.red(`AI request failed (${res.status}): ${errText}`)
+        );
+        process.exit(1);
+      }
+
+      const data = await res.json();
+      spinner.succeed(chalk.green("AI responded!"));
+
+      // CORRECTED: Safely parse the response according to the Gemini API schema.
+      const out = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      console.log("\n" + chalk.cyan.bold("--- AI Response ---"));
+      if (out) {
+        console.log(out);
+      } else {
+        console.log(
+          chalk.yellow("Could not parse response, showing raw JSON:")
+        );
+        console.log(JSON.stringify(data, null, 2));
+      }
+      console.log(chalk.cyan.bold("--- End Response ---"));
+    } catch (err) {
+      spinner.fail();
+      console.error(chalk.red("AI request failed:"), err.message || err);
+      process.exit(1);
+    }
+  });
 
 async function renderAnimatedBanner() {
   if (!process.stdout.isTTY) {
@@ -73,7 +162,7 @@ async function renderAnimatedBanner() {
     "        ..\n    .:lllll:.\n   .:kkkkkkkk:.\n   .:kkkkkkkk:.\n    .:lllll:.\n        ..",
   ];
   const blockLines = figlet
-    .textSync("RAZE CLI", { font: "ANSI Shadow" })
+    .textSync("RAZE", { font: "ANSI Shadow" })
     .split("\n");
   const palette = [
     chalk.magentaBright,
@@ -83,11 +172,7 @@ async function renderAnimatedBanner() {
   ];
   const coloredBlock = blockLines.map((l, i) => palette[i % palette.length](l));
   for (let i = 0; i < frames.length; i++) {
-    // Use console.clear() for cross-platform clearing. Some Windows shells
-    // don't honor the manual escape sequence used previously which caused
-    // each frame to be appended instead of replacing the previous output.
     console.clear();
-    // Show small decorative frames in gray (no forced background)
     console.log(chalk.gray(frames[i]));
     console.log(coloredBlock.join("\n"));
     console.log(
@@ -165,15 +250,9 @@ program
     }
   });
 
-// This line is essential for parsing the arguments and executing the commands
-// Peek for --no-banner before parsing (so we don't need a preliminary parse pass)
-// We need an async wrapper to allow optional animation before full parse.
 (async () => {
   const argv = process.argv;
   const hideBanner = argv.includes("--no-banner");
-  // User asked for no animation — always show the static swirl + colored RAZE
-  // unless --no-banner is provided. Keep try/catch to avoid crashing on edge
-  // cases (e.g., figlet/font loading issues).
   if (!hideBanner) {
     try {
       renderStaticBlock();
