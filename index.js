@@ -18,20 +18,20 @@ function renderStaticBlock() {
        .:'lkkkkkkkkkkkkkkkkkkkk:...
      .:kkkkkkkkkkkkkkkkkkkkkkkkkkkdc.
     .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx,
-   .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-  .okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
- .:kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkd.
-.okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko
-okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko
-ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko
-'okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko
-.dkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk,
- .:kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkd.
-  .okkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-   .lkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-     .':oxkkkkkkkkkkkkkkkkkkkkkkkkkx,
+   .ckkkkkkkkkkkkkkko:'...':okkkkkkkko.
+  .okkkkkkkkkkkkkk:.         'okkkkkkko.
+ .:kkkkkkkkkkkkkkc             ckkkkkkkd.
+.okkkkkkkkkkkkkkkc             ckkkkkkkko.
+ckkkkkkkkkkkkkkkk:             ckkkkkkkkko
+okkkkkkkkkkkkkkkk:             ckkkkkkkkko
+ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
+'okkkkkkkkkkkkkkko.           .okkkkkkkkko
+.dkkkkkkkkkkkkkkkd.          .okkkkkkkkkk,
+ .:kkkkkkkkkkkkkkkkc.      .:okkkkkkkkkkd.
+  .okkkkkkkkkkkkkkkkkc.  .:okkkkkkkkkkko.
+   .lkkkkkkkkkkkkkkkkkkxookkkkkkkkkkkko.
+    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
+     .':oxkkkkkkkkkkkkkkkkkkkkkkkkxo,
          ..';:cloxkOOkkxooc:;'..
                ..,;;;,,..
 `;
@@ -223,6 +223,38 @@ function parseArgsStringToArgv(str) {
   return args;
 }
 
+// Find the closest command name (simple Levenshtein distance)
+function levenshtein(a, b) {
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const v0 = new Array(b.length + 1).fill(0);
+  const v1 = new Array(b.length + 1).fill(0);
+  for (let j = 0; j <= b.length; j++) v0[j] = j;
+  for (let i = 0; i < a.length; i++) {
+    v1[0] = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+    }
+    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
+  }
+  return v1[b.length];
+}
+
+function findClosest(token, list) {
+  let best = null;
+  let bestScore = Infinity;
+  for (const item of list) {
+    const d = levenshtein(token, item);
+    if (d < bestScore) {
+      bestScore = d;
+      best = item;
+    }
+  }
+  // only suggest if reasonably close
+  return bestScore <= Math.max(2, Math.floor(token.length / 2)) ? best : null;
+}
+
 program
   .command("start")
   .description(
@@ -258,6 +290,26 @@ program
       }
       if (trimmed === "help") {
         program.outputHelp();
+        rl.prompt();
+        return;
+      }
+
+      // quick check: avoid spawning child for unknown commands so we don't get commander stack traces
+      const firstToken = trimmed.split(/\s+/)[0];
+      const knownCommands = program.commands.map((c) => c.name());
+      if (!firstToken.startsWith("-") && !knownCommands.includes(firstToken)) {
+        const suggestion = findClosest(firstToken, knownCommands);
+        console.log(
+          chalk.yellow(
+            `Unknown command: '${firstToken}'.${
+              suggestion ? ` Did you mean '${suggestion}'?` : ""
+            }`
+          )
+        );
+        console.log(
+          chalk.gray("Available commands:"),
+          knownCommands.join(", ")
+        );
         rl.prompt();
         return;
       }
