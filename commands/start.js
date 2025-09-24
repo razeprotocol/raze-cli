@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import readline from "readline";
 import { spawn } from "child_process";
+import fs from "fs";
+import path from "path";
 import {
   renderStaticBlock,
   parseArgsStringToArgv,
@@ -84,12 +86,11 @@ export default function registerStart(program) {
               targetRaw === "../" ||
               targetRaw === "..\\"
             ) {
-              target = require("path").resolve(process.cwd(), "..");
+              target = path.resolve(process.cwd(), "..");
             } else {
-              target = require("path").resolve(process.cwd(), targetRaw);
+              target = path.resolve(process.cwd(), targetRaw);
             }
             // validate
-            const fs = require("fs");
             if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
               console.log(chalk.red(`cd: no such directory: ${target}`));
             } else {
