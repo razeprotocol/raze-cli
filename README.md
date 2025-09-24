@@ -169,18 +169,18 @@ The AI is encouraged to return JSON:
 
 ```mermaid
 flowchart TD
-    A[User Input / Prompt] --> B{Is it AI command?}
-    B -->|No| C[Dispatch to command module]
-    B -->|Yes| D[Enhance Prompt]
-    D --> E[Send to Gemini API]
-    E --> F{JSON actions?}
-    F -->|Yes| G[Parse actions]
-    F -->|No| H[Heuristic Parser]
-    G --> I[Confirm (unless --auto)]
+    A["User Input / Prompt"] --> B{"Is it AI command?"}
+    B -->|No| C["Dispatch to command module"]
+    B -->|Yes| D["Enhance Prompt"]
+    D --> E["Send to Gemini API"]
+    E --> F{"JSON actions?"}
+    F -->|Yes| G["Parse actions"]
+    F -->|No| H["Heuristic Parser"]
+    G --> I["Confirm (unless --auto)"]
     H --> I
-    I -->|Approved| J[Execute Intents]
-    J --> K[FS Ops / Spawn / Open VSCode]
-    K --> L[Result + Logs]
+    I -->|Approved| J["Execute Intents"]
+    J --> K["FS Ops / Spawn / Open VSCode"]
+    K --> L["Result + Logs"]
 ```
 
 ### File Structure
