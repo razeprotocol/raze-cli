@@ -78,7 +78,17 @@ Available actions:
   - Properties: command (required), cwd (optional), background (optional)
 - open_vscode: Open VS Code in directory (use "path" property)
 
-IMPORTANT: Use "target" for mkdir/touch/rm actions, use "path" for open_vscode action.
+IMPORTANT: 
+- Use "target" for mkdir/touch/rm actions, use "path" for open_vscode action
+- User is on Windows, so prefer Windows-compatible commands
+- For run_command: Use "cwd" property to set working directory, DON'T include "cd" in the command
+- CORRECT: {"action": "run_command", "command": "npm install", "cwd": "./my-app"}  
+- INCORRECT: {"action": "run_command", "command": "cd my-app && npm install"}
+
+Examples of CORRECT command structure:
+- Create Next.js in subfolder: {"action": "run_command", "command": "npx create-next-app@latest frontend --typescript", "cwd": "./my-app"}
+- Install in subfolder: {"action": "run_command", "command": "npm install", "cwd": "./my-app/frontend"}
+- Run server: {"action": "run_command", "command": "npm run dev", "cwd": "./my-app/frontend", "background": true}
 
 For ANY technology request:
 - Rust project: Use "cargo new", "cargo run", etc.
@@ -92,6 +102,7 @@ Examples:
 - "setup python virtual environment" → python -m venv commands  
 - "create flutter app" → flutter create commands
 - "setup go project with modules" → go mod commands
+- "remove all folders" → {"action": "run_command", "command": "Get-ChildItem -Directory | Remove-Item -Recurse -Force"}
 
 Always provide the complete workflow from project creation to running, including opening VS Code if requested.
 Only respond with JSON for development/tech requests, otherwise respond normally.`;
@@ -146,12 +157,22 @@ Only respond with JSON for development/tech requests, otherwise respond normally
 
         if (intents.length > 0) {
           for (const intent of intents) {
-            console.log(
-              chalk.cyan("Interpreted action:"),
-              intent.action,
-              intent.target,
-              intent.recursive ? "(recursive)" : ""
-            );
+            let actionInfo = intent.action;
+
+            // Add relevant info based on action type
+            if (intent.target) {
+              actionInfo += ` ${intent.target}`;
+            } else if (intent.command) {
+              actionInfo += ` ${intent.command}`;
+            } else if (intent.path) {
+              actionInfo += ` ${intent.path}`;
+            }
+
+            if (intent.recursive) {
+              actionInfo += " (recursive)";
+            }
+
+            console.log(chalk.cyan("Interpreted action:"), actionInfo);
           }
 
           let proceed = !!opts.auto;
@@ -303,6 +324,38 @@ function interpretFileIntent(text) {
           },
         ];
     }
+  }
+
+  // Handle bulk removal requests: "remove all folders", "delete all directories"
+  const bulkRemovalMatch = text.match(
+    /(?:remove|delete)\s+all\s+(?:the\s+)?(?:folders?|directories?)/i
+  );
+  if (bulkRemovalMatch) {
+    return [
+      {
+        action: "run_command",
+        command:
+          process.platform === "win32"
+            ? "Get-ChildItem -Directory | Remove-Item -Recurse -Force"
+            : 'find . -maxdepth 1 -type d ! -name "." -exec rm -rf {} +',
+      },
+    ];
+  }
+
+  // Handle bulk file removal: "remove all files", "delete all files"
+  const bulkFileRemovalMatch = text.match(
+    /(?:remove|delete)\s+all\s+(?:the\s+)?files?/i
+  );
+  if (bulkFileRemovalMatch) {
+    return [
+      {
+        action: "run_command",
+        command:
+          process.platform === "win32"
+            ? "Get-ChildItem -File | Remove-Item -Force"
+            : "rm -f *",
+      },
+    ];
   }
 
   // Handle package installation requests
@@ -491,20 +544,84 @@ async function executeIntent(intent, opts = { force: false }) {
   }
   if (intent.action === "run_command") {
     const { spawn } = await import("child_process");
-    const cwd = intent.cwd ? path.resolve(intent.cwd) : process.cwd();
+    let cwd = intent.cwd ? path.resolve(intent.cwd) : process.cwd();
+    let command = intent.command;
 
-    console.log(chalk.cyan(`Running: ${intent.command} in ${cwd}`));
+    // Extract directory changes from the command itself
+    const cdMatch = command.match(/^cd\s+([^;&]+)[;&]\s*(.+)$/);
+    if (cdMatch) {
+      // If command starts with cd, use that as the working directory
+      const cdPath = cdMatch[1].trim();
+      cwd = path.resolve(cwd, cdPath);
+      command = cdMatch[2]; // Use the rest of the command
+    }
+
+    // Ensure the working directory exists
+    if (!fs.existsSync(cwd)) {
+      console.log(chalk.yellow(`Creating working directory: ${cwd}`));
+      fs.mkdirSync(cwd, { recursive: true });
+    }
+
+    // Handle cross-platform command translations
+    if (process.platform === "win32") {
+      // Replace batch-style commands with PowerShell equivalents
+      if (command.includes('for /d %i in (*) do rmdir /s /q "%i"')) {
+        command = "Get-ChildItem -Directory | Remove-Item -Recurse -Force";
+      }
+
+      // Handle chained commands with && - convert to PowerShell syntax
+      if (command.includes(" && ")) {
+        command = command.replace(/ && /g, "; ");
+      }
+
+      // Replace other Unix-specific patterns with PowerShell
+      command = command
+        .replace(/find\s+\.\s+-type\s+d/g, "Get-ChildItem -Directory")
+        .replace(/xargs\s+-0\s+rm\s+-rf/g, "| Remove-Item -Recurse -Force")
+        .replace(/rm\s+-rf\s+\*/g, "Remove-Item * -Recurse -Force")
+        .replace(/ls\s+-la/g, "Get-ChildItem -Force")
+        .replace(/cat\s+/g, "Get-Content ")
+        .replace(/which\s+/g, "Get-Command ")
+        .replace(/del\s+\/q\s+\*\.\*/g, "Remove-Item * -Force")
+        .replace(/dir\s+\/ad\s+\/b/g, "Get-ChildItem -Directory")
+        .replace(/rmdir\s+\/s\s+\/q/g, "Remove-Item -Recurse -Force");
+    }
+
+    console.log(chalk.cyan(`Running: ${command} in ${cwd}`));
 
     return new Promise((resolve, reject) => {
-      const parts = intent.command.split(" ");
-      const cmd = parts[0];
-      const args = parts.slice(1);
+      // For Windows, handle commands differently based on complexity
+      const isWindows = process.platform === "win32";
 
-      const child = spawn(cmd, args, {
-        cwd,
-        stdio: intent.background ? "pipe" : "inherit",
-        shell: true,
-      });
+      let child;
+      if (isWindows) {
+        // For simple npm/npx commands, use cmd.exe for better compatibility
+        if (
+          command.includes("npm") ||
+          command.includes("npx") ||
+          command.includes("node")
+        ) {
+          child = spawn("cmd.exe", ["/c", command], {
+            cwd,
+            stdio: intent.background ? "pipe" : "inherit",
+            shell: false,
+          });
+        } else {
+          // Use PowerShell for other commands
+          child = spawn("powershell.exe", ["-Command", command], {
+            cwd,
+            stdio: intent.background ? "pipe" : "inherit",
+            shell: false,
+          });
+        }
+      } else {
+        // Use bash for Unix commands
+        child = spawn("bash", ["-c", command], {
+          cwd,
+          stdio: intent.background ? "pipe" : "inherit",
+          shell: false,
+        });
+      }
 
       if (intent.background) {
         console.log(
@@ -522,7 +639,10 @@ async function executeIntent(intent, opts = { force: false }) {
         }
       });
 
-      child.on("error", reject);
+      child.on("error", (error) => {
+        console.log(chalk.red(`Command error: ${error.message}`));
+        reject(error);
+      });
     });
   }
 
