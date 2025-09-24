@@ -13,6 +13,7 @@ An intelligent, modular developer command‑line assistant that:
 > Platform focus so far: Windows (PowerShell) with fallbacks for Unix‑style commands.
 
 ---
+<img width="1621" height="1017" alt="image" src="https://github.com/user-attachments/assets/c835143f-2a0a-445b-a3e6-58e0706b0974" />
 
 ## Table of Contents
 
