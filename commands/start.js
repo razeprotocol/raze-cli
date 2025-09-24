@@ -69,20 +69,58 @@ export default function registerStart(program) {
           return;
         }
 
+        // handle interactive cd locally so the session cwd changes
         const parts = parseArgsStringToArgv(trimmed);
-        try {
-          await new Promise((resolve, reject) => {
-            const child = spawn(process.execPath, [process.argv[1], ...parts], {
-              stdio: "inherit",
+        if (parts[0] === "cd") {
+          // support: cd, cd ., cd .., cd ../x, cd path
+          const targetRaw = parts[1] || "";
+          try {
+            let target;
+            if (!targetRaw || targetRaw === "~") {
+              target =
+                process.env.HOME || process.env.USERPROFILE || process.cwd();
+            } else if (
+              targetRaw === ".." ||
+              targetRaw === "../" ||
+              targetRaw === "..\\"
+            ) {
+              target = require("path").resolve(process.cwd(), "..");
+            } else {
+              target = require("path").resolve(process.cwd(), targetRaw);
+            }
+            // validate
+            const fs = require("fs");
+            if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+              console.log(chalk.red(`cd: no such directory: ${target}`));
+            } else {
+              process.chdir(target);
+              console.log(
+                chalk.cyan("Directory changed to:"),
+                chalk.yellow(process.cwd())
+              );
+            }
+          } catch (err) {
+            console.error(chalk.red("cd failed:"), err?.message || err);
+          }
+        } else {
+          try {
+            await new Promise((resolve, reject) => {
+              const child = spawn(
+                process.execPath,
+                [process.argv[1], ...parts],
+                {
+                  stdio: "inherit",
+                }
+              );
+              child.on("error", reject);
+              child.on("close", () => resolve());
             });
-            child.on("error", reject);
-            child.on("close", () => resolve());
-          });
-        } catch (err) {
-          console.error(
-            chalk.red("Failed to run command:"),
-            err?.message || err
-          );
+          } catch (err) {
+            console.error(
+              chalk.red("Failed to run command:"),
+              err?.message || err
+            );
+          }
         }
         rl.prompt();
       });

@@ -9,7 +9,7 @@ export default function registerAi(program) {
     .argument("[prompt...]", "Prompt to send to the model")
     .option("--model <model>", "Model to use", "gemini-1.5-flash-latest")
     .action(async (promptParts, opts) => {
-      const apiKey = process.env.GEMINI_API_KEY || "";
+      const apiKey = "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
       if (!apiKey) {
         console.error(
           chalk.red(
@@ -57,7 +57,7 @@ export default function registerAi(program) {
         const data = await res.json();
         spinner.succeed(chalk.green("AI responded!"));
         const out = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        console.log("\n" + chalk.cyan.bold("--- AI Response ---"));
+        // console.log("\n" + chalk.cyan.bold("--- AI Response ---"));
         if (out) console.log(out);
         else {
           console.log(
@@ -65,7 +65,7 @@ export default function registerAi(program) {
           );
           console.log(JSON.stringify(data, null, 2));
         }
-        console.log(chalk.cyan.bold("--- End Response ---"));
+        // console.log(chalk.cyan.bold("--- End Response ---"));
       } catch (err) {
         spinner.fail();
         console.error(chalk.red("AI request failed:"), err?.message || err);
