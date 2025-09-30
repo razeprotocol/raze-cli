@@ -141,23 +141,23 @@ graph TD
     B --> E[Application Control]
     B --> F[Process Management]
     B --> G[System Monitoring]
-    
+
     C --> C1[npm install]
     C --> C2[git operations]
     C --> C3[contract deployment]
-    
+
     D --> D1[Read smart contracts]
     D --> D2[Write new files]
     D --> D3[Update configs]
-    
+
     E --> E1[Launch VS Code]
     E --> E2[Open browsers]
     E --> E3[Start servers]
-    
+
     F --> F1[Monitor processes]
     F --> F2[Kill hung tasks]
     F --> F3[Check resources]
-    
+
     G --> G1[System info]
     G --> G2[Network status]
     G --> G3[Port monitoring]
@@ -181,21 +181,22 @@ raze setup
 
 ### 🔧 Available MCP Tools
 
-| Tool | Description | Example Use |
-|------|-------------|-------------|
-| `execute_command` | Run shell commands | `npm install ethers`, `git commit -m "feat: add staking"` |
-| `read_file` | Read file contents | Analyze smart contracts, read configs |
-| `write_file` | Create/update files | Generate contracts, update documentation |
-| `list_directory` | Browse project structure | Explore repos, find files |
-| `get_system_info` | System information | Check resources, platform details |
-| `find_applications` | Locate installed apps | Find VS Code, Node.js, Git |
-| `launch_application` | Start applications | Open VS Code, launch browsers |
-| `check_port` | Monitor network ports | Verify servers, check conflicts |
-| `kill_process` | Process management | Stop hung processes, cleanup |
+| Tool                 | Description              | Example Use                                               |
+| -------------------- | ------------------------ | --------------------------------------------------------- |
+| `execute_command`    | Run shell commands       | `npm install ethers`, `git commit -m "feat: add staking"` |
+| `read_file`          | Read file contents       | Analyze smart contracts, read configs                     |
+| `write_file`         | Create/update files      | Generate contracts, update documentation                  |
+| `list_directory`     | Browse project structure | Explore repos, find files                                 |
+| `get_system_info`    | System information       | Check resources, platform details                         |
+| `find_applications`  | Locate installed apps    | Find VS Code, Node.js, Git                                |
+| `launch_application` | Start applications       | Open VS Code, launch browsers                             |
+| `check_port`         | Monitor network ports    | Verify servers, check conflicts                           |
+| `kill_process`       | Process management       | Stop hung processes, cleanup                              |
 
 ### 🎯 AI-Assisted Development Workflows
 
 #### 🏗️ Complete Project Setup
+
 ```
 AI Prompt: "Create a DeFi yield farming project with React frontend, deploy to Polygon testnet, and open in VS Code"
 
@@ -213,6 +214,7 @@ MCP Actions:
 ```
 
 #### 🐛 Automated Debugging
+
 ```
 AI Prompt: "My contract deployment failed. Debug and fix it."
 
@@ -227,6 +229,7 @@ MCP Actions:
 ```
 
 #### 🔄 Continuous Development
+
 ```
 AI Prompt: "Add staking rewards feature, update tests, and redeploy"
 
@@ -260,11 +263,11 @@ sequenceDiagram
     participant FS as File System
     participant OS as Operating System
     participant APP as Applications
-    
+
     AI->>MCP: Request tool execution
     MCP->>MCP: Validate permissions
     MCP->>MCP: Security check
-    
+
     alt File Operation
         MCP->>FS: Read/Write files
         FS-->>MCP: File data
@@ -275,7 +278,7 @@ sequenceDiagram
         MCP->>APP: Launch application
         APP-->>MCP: Process info
     end
-    
+
     MCP->>MCP: Log operation
     MCP-->>AI: Return result
 ```
@@ -301,6 +304,7 @@ raze mcp               # Open interactive menu
 ### 🤝 AI Assistant Integration
 
 #### Claude (Anthropic)
+
 ```json
 {
   "mcpServers": {
@@ -318,10 +322,13 @@ raze mcp               # Open interactive menu
 ```
 
 #### ChatGPT (Custom GPT)
+
 Use the generated configuration to connect Raze CLI as a custom action in your GPT.
 
 #### Local AI Models
+
 Works with any AI that supports MCP protocol:
+
 - Ollama with MCP support
 - Local LLMs with MCP adapters
 - Custom AI implementations
@@ -329,18 +336,21 @@ Works with any AI that supports MCP protocol:
 ### 💡 Use Cases
 
 #### For Individual Developers
+
 - **AI Pair Programming**: AI executes your ideas instantly
 - **Automated Setup**: Complete development environments in minutes
 - **Smart Debugging**: AI reads logs and fixes issues
 - **Code Generation**: AI writes and saves files directly
 
 #### For Teams
+
 - **Consistent Environments**: AI ensures same setup across team
 - **Documentation**: AI maintains project docs automatically
 - **Code Reviews**: AI analyzes and suggests improvements
 - **Deployment**: AI handles complex multi-chain deployments
 
 #### For Learning
+
 - **Interactive Tutorials**: AI guides through Web3 development
 - **Live Examples**: AI creates working dApps instantly
 - **Best Practices**: AI implements security patterns automatically
@@ -454,15 +464,15 @@ raze analyze --monitor GovernanceDAO.sol
 
 ### 🔌 MCP Server Commands
 
-| Command               | Description                              | Example                    |
-| --------------------- | ---------------------------------------- | -------------------------- |
-| `raze mcp start`      | Start MCP server for AI integration     | `raze mcp start`           |
-| `raze mcp stop`       | Stop running MCP server                  | `raze mcp stop`            |
-| `raze mcp status`     | Check MCP server status                  | `raze mcp status`          |
-| `raze mcp cleanup`    | Clean up stale processes and PID files  | `raze mcp cleanup`         |
-| `raze mcp config`     | Generate AI assistant configuration      | `raze mcp config`          |
-| `raze mcp`            | Interactive MCP management menu          | `raze mcp`                 |
-| `raze setup`          | Complete AI integration setup wizard     | `raze setup`               |
+| Command            | Description                            | Example            |
+| ------------------ | -------------------------------------- | ------------------ |
+| `raze mcp start`   | Start MCP server for AI integration    | `raze mcp start`   |
+| `raze mcp stop`    | Stop running MCP server                | `raze mcp stop`    |
+| `raze mcp status`  | Check MCP server status                | `raze mcp status`  |
+| `raze mcp cleanup` | Clean up stale processes and PID files | `raze mcp cleanup` |
+| `raze mcp config`  | Generate AI assistant configuration    | `raze mcp config`  |
+| `raze mcp`         | Interactive MCP management menu        | `raze mcp`         |
+| `raze setup`       | Complete AI integration setup wizard   | `raze setup`       |
 
 ### 🤖 AI & Development Commands
 
@@ -507,13 +517,13 @@ raze analyze --monitor GovernanceDAO.sol
 
 #### MCP Server Options
 
-| Flag              | Description                    | Default     |
-| ----------------- | ------------------------------ | ----------- |
-| `--port <port>`   | MCP server port                | `3000`      |
-| `--host <host>`   | MCP server host                | `localhost` |
-| `--start`         | Start MCP server               | `false`     |
-| `--stop`          | Stop MCP server                | `false`     |
-| `--cleanup`       | Clean up stale processes       | `false`     |
+| Flag            | Description              | Default     |
+| --------------- | ------------------------ | ----------- |
+| `--port <port>` | MCP server port          | `3000`      |
+| `--host <host>` | MCP server host          | `localhost` |
+| `--start`       | Start MCP server         | `false`     |
+| `--stop`        | Stop MCP server          | `false`     |
+| `--cleanup`     | Clean up stale processes | `false`     |
 
 ---
 

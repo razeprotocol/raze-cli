@@ -74,11 +74,13 @@ raze setup
 ### 3. Configure Your AI Assistant
 
 #### For Claude (Desktop App)
+
 1. Open Claude Settings → Developer
 2. Add MCP Server with the generated configuration
 3. Restart Claude
 
 #### For ChatGPT (Custom GPT)
+
 1. Create new Custom GPT
 2. Add the generated configuration as actions
 3. Enable the Raze CLI integration
@@ -86,6 +88,7 @@ raze setup
 ### 4. Test Integration
 
 Ask your AI assistant:
+
 ```
 "Check the status of my Raze MCP server and show me the current directory contents"
 ```
@@ -99,40 +102,49 @@ The AI should be able to execute these commands and show you results!
 ### 📂 File Operations
 
 #### `read_file`
+
 Read any file in your project.
 
 **Parameters:**
+
 - `filepath`: Path to file (relative or absolute)
 - `encoding`: File encoding (default: utf8)
 
 **Example Use:**
+
 ```
 AI: "Read the main smart contract file"
 MCP: read_file("contracts/MyToken.sol")
 ```
 
 #### `write_file`
+
 Create or update files.
 
 **Parameters:**
+
 - `filepath`: Path to file
 - `content`: File content
 - `encoding`: File encoding (default: utf8)
 
 **Example Use:**
+
 ```
 AI: "Create a new ERC20 token contract"
 MCP: write_file("contracts/MyERC20.sol", "pragma solidity ^0.8.0;...")
 ```
 
 #### `list_directory`
+
 Browse directory contents.
 
 **Parameters:**
+
 - `dirpath`: Directory path
 - `recursive`: List subdirectories (default: false)
 
 **Example Use:**
+
 ```
 AI: "Show me all the contract files"
 MCP: list_directory("contracts/", true)
@@ -141,20 +153,24 @@ MCP: list_directory("contracts/", true)
 ### ⚡ Command Execution
 
 #### `execute_command`
+
 Run shell commands.
 
 **Parameters:**
+
 - `command`: Command to execute
 - `cwd`: Working directory (optional)
 - `timeout`: Timeout in milliseconds (default: 30000)
 
 **Example Use:**
+
 ```
 AI: "Install OpenZeppelin contracts"
 MCP: execute_command("npm install @openzeppelin/contracts")
 ```
 
 **Common Commands:**
+
 - `npm install ethers hardhat`
 - `npx hardhat compile`
 - `npx hardhat test`
@@ -164,26 +180,32 @@ MCP: execute_command("npm install @openzeppelin/contracts")
 ### 🖥️ System Information
 
 #### `get_system_info`
+
 Get comprehensive system information.
 
 **Returns:**
+
 - Platform, architecture, memory
 - Node.js version, current directory
 - CPU count, system uptime
 
 **Example Use:**
+
 ```
 AI: "Check system resources before deploying"
 MCP: get_system_info()
 ```
 
 #### `check_port`
+
 Check if a port is available.
 
 **Parameters:**
+
 - `port`: Port number to check
 
 **Example Use:**
+
 ```
 AI: "Is port 3000 available for the frontend server?"
 MCP: check_port(3000)
@@ -192,25 +214,31 @@ MCP: check_port(3000)
 ### 🚀 Application Control
 
 #### `find_applications`
+
 Find installed applications.
 
 **Parameters:**
+
 - `search_term`: Application name or keyword
 
 **Example Use:**
+
 ```
 AI: "Find VS Code installation"
 MCP: find_applications("code")
 ```
 
 #### `launch_application`
+
 Launch applications.
 
 **Parameters:**
+
 - `app_name`: Application name or path
 - `args`: Command line arguments (optional)
 
 **Example Use:**
+
 ```
 AI: "Open this project in VS Code"
 MCP: launch_application("code", ["."])
@@ -219,13 +247,16 @@ MCP: launch_application("code", ["."])
 ### 🔄 Process Management
 
 #### `kill_process`
+
 Stop processes by name or PID.
 
 **Parameters:**
+
 - `identifier`: Process name or PID
 - `force`: Force kill (default: false)
 
 **Example Use:**
+
 ```
 AI: "Stop any running hardhat nodes"
 MCP: kill_process("hardhat")
@@ -357,8 +388,8 @@ Execution Flow:
               "schema": {
                 "type": "object",
                 "properties": {
-                  "tool": {"type": "string"},
-                  "args": {"type": "object"}
+                  "tool": { "type": "string" },
+                  "args": { "type": "object" }
                 }
               }
             }
@@ -379,8 +410,8 @@ For Ollama, LM Studio, or other local models:
 
 ```javascript
 const client = new MCPClient({
-  serverCommand: 'node',
-  serverArgs: ['path/to/raze-cli/mcp-server.js']
+  serverCommand: "node",
+  serverArgs: ["path/to/raze-cli/mcp-server.js"],
 });
 ```
 
@@ -418,17 +449,8 @@ const client = new MCPClient({
 
 ```json
 {
-  "allowedPaths": [
-    "./contracts/",
-    "./scripts/",
-    "./test/",
-    "./frontend/"
-  ],
-  "blockedPaths": [
-    "/system/",
-    "/usr/",
-    "/windows/"
-  ]
+  "allowedPaths": ["./contracts/", "./scripts/", "./test/", "./frontend/"],
+  "blockedPaths": ["/system/", "/usr/", "/windows/"]
 }
 ```
 
@@ -521,18 +543,20 @@ Extend MCP server with custom tools:
 class CustomTool {
   async deployToMultipleChains(args) {
     const { contract, chains } = args;
-    
+
     for (const chain of chains) {
       await this.executeCommand({
-        command: `npx hardhat deploy --network ${chain} ${contract}`
+        command: `npx hardhat deploy --network ${chain} ${contract}`,
       });
     }
-    
+
     return {
-      content: [{
-        type: "text",
-        text: `Deployed ${contract} to ${chains.join(', ')}`
-      }]
+      content: [
+        {
+          type: "text",
+          text: `Deployed ${contract} to ${chains.join(", ")}`,
+        },
+      ],
     };
   }
 }
@@ -594,21 +618,25 @@ raze mcp export --format json --output ./mcp-logs.json
 ## 🎯 Use Cases by Role
 
 ### 👨‍💻 Solo Developer
+
 - **AI Pair Programming**: "Add staking rewards to my DeFi contract"
 - **Quick Prototyping**: "Create a simple NFT marketplace"
 - **Debug Assistance**: "Fix this deployment error"
 
 ### 👥 Team Lead
+
 - **Onboarding**: "Setup development environment for new team member"
 - **Code Reviews**: "Analyze this contract for security issues"
 - **Documentation**: "Generate README for this project"
 
 ### 🎓 Student/Learner
+
 - **Interactive Learning**: "Explain and implement a flash loan contract"
 - **Project Generation**: "Create a complete DeFi tutorial project"
 - **Best Practices**: "Show me proper testing patterns for smart contracts"
 
 ### 🏢 Enterprise
+
 - **Audit Preparation**: "Generate comprehensive security analysis"
 - **Multi-Chain Deployment**: "Deploy to all supported networks"
 - **Compliance**: "Ensure contracts meet regulatory requirements"
@@ -618,6 +646,7 @@ raze mcp export --format json --output ./mcp-logs.json
 ## 🚀 Future Roadmap
 
 ### Planned Features
+
 - **Multi-Server Support**: Connect multiple development environments
 - **Visual Interface**: Web-based MCP management dashboard
 - **Team Collaboration**: Shared MCP configurations and sessions
@@ -625,6 +654,7 @@ raze mcp export --format json --output ./mcp-logs.json
 - **Advanced Security**: Role-based access control, audit trails
 
 ### Community Features
+
 - **Plugin System**: Community-developed MCP tools
 - **Template Library**: Pre-built AI workflows for common tasks
 - **Marketplace**: Share and discover AI development patterns
