@@ -10,7 +10,7 @@ export default function registerAi(program) {
     .command("ai")
     .description("Query an AI model (Gemini). Reads GEMINI_API_KEY from env.")
     .argument("[prompt...]", "Prompt to send to the model")
-    .option("--model <model>", "Model to use", "gemini-1.5-flash-latest")
+    .option("--model <model>", "Model to use", "gemini-flash-latest")
     .option(
       "--auto",
       "Automatically perform interpreted file actions without confirmation"
