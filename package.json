@@ -1,23 +1,47 @@
 {
-  "name": "my-cool-cli",
+  "name": "raze-web3-cli",
   "version": "1.0.0",
-  "description": "",
+  "description": "AI-powered Web3 development CLI tool for smart contracts, DeFi, NFTs, and blockchain development",
   "main": "index.js",
   "type": "module",
   "bin": {
     "raze": "./index.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"Building Raze Web3 CLI...\"",
+    "dev": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "web3",
+    "blockchain",
+    "smart-contracts",
+    "defi",
+    "nft",
+    "ethereum",
+    "solidity",
+    "ai",
+    "cli",
+    "developer-tools",
+    "hardhat",
+    "foundry"
+  ],
+  "author": "Raze Protocol",
+  "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "figlet": "^1.7.0",
     "inquirer": "^9.2.23",
-    "ora": "^8.0.1"
+    "ora": "^8.0.1",
+    "ethers": "^6.8.0",
+    "web3": "^4.2.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "hardhat": "^2.19.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.0"
   }
 }

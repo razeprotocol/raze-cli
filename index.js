@@ -13,6 +13,13 @@ import registerTouch from "./commands/filemanagement/touch.js";
 import registerCd from "./commands/filemanagement/cd.js";
 import registerLs from "./commands/filemanagement/ls.js";
 import registerRm from "./commands/filemanagement/rm.js";
+// Web3 Commands
+import registerWeb3 from "./commands/web3.js";
+import registerContract from "./commands/contract.js";
+import registerDefi from "./commands/defi.js";
+import registerNft from "./commands/nft.js";
+import registerAnalytics from "./commands/analyze.js";
+import registerDeploy from "./commands/deploy.js";
 
 const program = new Command();
 
@@ -37,6 +44,13 @@ registerTouch(program);
 registerCd(program);
 registerLs(program);
 registerRm(program);
+// Register Web3 commands
+registerWeb3(program);
+registerContract(program);
+registerDefi(program);
+registerNft(program);
+registerAnalytics(program);
+registerDeploy(program);
 
 // parse CLI args
 program.parse(process.argv);
