@@ -3,13 +3,14 @@
 An intelligent, modular **Web3 developer command-line assistant** that revolutionizes blockchain development:
 
 - 🤖 **AI-Powered Smart Contract Generation**: Natural language → Complete DeFi protocols, NFT collections, DAOs
-- 🔗 **Multi-Chain Deployment**: Deploy to 10+ blockchains with a single command
+- � **MCP Server Integration**: Let AI assistants control your entire development environment
+- �🔗 **Multi-Chain Deployment**: Deploy to 10+ blockchains with a single command
 - 🛡️ **Built-in Security Analysis**: Automated vulnerability detection with Slither, MythX integration
 - 🏗️ **Complete dApp Builder**: From smart contracts to frontend deployment
 - 💡 **Interactive REPL**: Shell-like commands with Web3 intelligence
 - 🌐 **Cross-Platform**: Windows (PowerShell) native with Unix support
 
-> **Perfect for**: Hackathons, Web3 grants, DeFi development, NFT projects, DAO creation
+> **Perfect for**: Hackathons, Web3 grants, DeFi development, NFT projects, DAO creation, AI-assisted development
 
 ---
 
@@ -29,6 +30,12 @@ npm install
 $env:GEMINI_API_KEY = "YOUR_KEY"   # PowerShell
 export GEMINI_API_KEY="YOUR_KEY"   # bash/zsh
 
+# Setup AI assistant integration (optional but powerful!)
+raze setup
+
+# Start MCP server for AI control
+raze mcp start
+
 # Start building Web3 projects!
 raze ai "create a DeFi lending protocol with flash loans"
 ```
@@ -36,6 +43,9 @@ raze ai "create a DeFi lending protocol with flash loans"
 ### 🌟 One-Command Examples
 
 ```bash
+# Enable AI assistant control over your development environment
+raze mcp start && raze setup
+
 # Deploy to multiple chains
 raze deploy --chains "ethereum,polygon,arbitrum" MyNFT.sol
 
@@ -58,17 +68,18 @@ raze web3 init --framework "hardhat" --chains "ethereum,polygon"
 ## 📋 Table of Contents
 
 1. [🎯 Web3 Features](#-web3-features)
-2. [⚡ Installation](#-installation)
-3. [🎪 Demo Commands](#-demo-commands)
-4. [📚 Command Reference](#-command-reference)
-5. [🔧 Configuration](#-configuration)
-6. [🛡️ Security Features](#️-security-features)
-7. [🌐 Multi-Chain Support](#-multi-chain-support)
-8. [🤖 AI Integration](#-ai-integration)
-9. [🏗️ Architecture](#️-architecture)
-10. [🎯 Hackathon Ready](#-hackathon-ready)
-11. [💰 Grant Applications](#-grant-applications)
-12. [🤝 Contributing](#-contributing)
+2. [🔌 MCP Server Integration](#-mcp-server-integration---ai-assistant-control)
+3. [⚡ Installation](#-installation)
+4. [🎪 Demo Commands](#-demo-commands)
+5. [📚 Command Reference](#-command-reference)
+6. [🔧 Configuration](#-configuration)
+7. [🛡️ Security Features](#️-security-features)
+8. [🌐 Multi-Chain Support](#-multi-chain-support)
+9. [🤖 AI Integration](#-ai-integration)
+10. [🏗️ Architecture](#️-architecture)
+11. [🎯 Hackathon Ready](#-hackathon-ready)
+12. [💰 Grant Applications](#-grant-applications)
+13. [🤝 Contributing](#-contributing)
 
 ---
 
@@ -109,6 +120,239 @@ End-to-end application creation:
 - **Frontend Integration**: React/Next.js with Web3 wallet connection
 - **Backend Services**: IPFS integration, subgraph creation
 - **Deployment Pipeline**: Automated CI/CD for Web3 projects
+
+---
+
+## 🔌 MCP Server Integration - AI Assistant Control
+
+**Revolutionary Feature**: Raze CLI includes a built-in **Model Context Protocol (MCP) server** that allows AI assistants to directly control your development environment. This creates an unprecedented AI-assisted development experience where AI can execute commands, read/write files, and manage your entire Web3 project.
+
+### 🤖 What is MCP?
+
+The Model Context Protocol enables AI assistants to securely access external systems. Raze CLI's MCP server provides 9 powerful tools that give AI complete control over your development workflow.
+
+### 🛠️ MCP Server Capabilities
+
+```mermaid
+graph TD
+    A[AI Assistant] -->|MCP Protocol| B[Raze MCP Server]
+    B --> C[Execute Commands]
+    B --> D[File Operations]
+    B --> E[Application Control]
+    B --> F[Process Management]
+    B --> G[System Monitoring]
+    
+    C --> C1[npm install]
+    C --> C2[git operations]
+    C --> C3[contract deployment]
+    
+    D --> D1[Read smart contracts]
+    D --> D2[Write new files]
+    D --> D3[Update configs]
+    
+    E --> E1[Launch VS Code]
+    E --> E2[Open browsers]
+    E --> E3[Start servers]
+    
+    F --> F1[Monitor processes]
+    F --> F2[Kill hung tasks]
+    F --> F3[Check resources]
+    
+    G --> G1[System info]
+    G --> G2[Network status]
+    G --> G3[Port monitoring]
+```
+
+### 🚀 MCP Quick Start
+
+```bash
+# Start the MCP server
+raze mcp start
+
+# Check server status
+raze mcp status
+
+# Generate AI assistant configuration
+raze mcp config
+
+# Setup complete AI integration
+raze setup
+```
+
+### 🔧 Available MCP Tools
+
+| Tool | Description | Example Use |
+|------|-------------|-------------|
+| `execute_command` | Run shell commands | `npm install ethers`, `git commit -m "feat: add staking"` |
+| `read_file` | Read file contents | Analyze smart contracts, read configs |
+| `write_file` | Create/update files | Generate contracts, update documentation |
+| `list_directory` | Browse project structure | Explore repos, find files |
+| `get_system_info` | System information | Check resources, platform details |
+| `find_applications` | Locate installed apps | Find VS Code, Node.js, Git |
+| `launch_application` | Start applications | Open VS Code, launch browsers |
+| `check_port` | Monitor network ports | Verify servers, check conflicts |
+| `kill_process` | Process management | Stop hung processes, cleanup |
+
+### 🎯 AI-Assisted Development Workflows
+
+#### 🏗️ Complete Project Setup
+```
+AI Prompt: "Create a DeFi yield farming project with React frontend, deploy to Polygon testnet, and open in VS Code"
+
+MCP Actions:
+1. execute_command: "mkdir yield-farm-dapp && cd yield-farm-dapp"
+2. write_file: Create package.json with dependencies
+3. write_file: Generate Solidity staking contract
+4. write_file: Create Hardhat config for Polygon
+5. execute_command: "npm install"
+6. execute_command: "npx hardhat compile"
+7. execute_command: "npx hardhat deploy --network mumbai"
+8. write_file: Create React frontend components
+9. execute_command: "npm create react-app frontend"
+10. launch_application: "code ."
+```
+
+#### 🐛 Automated Debugging
+```
+AI Prompt: "My contract deployment failed. Debug and fix it."
+
+MCP Actions:
+1. read_file: Read deployment logs
+2. get_system_info: Check system resources
+3. check_port: Verify RPC connection
+4. read_file: Analyze contract code
+5. execute_command: "npx hardhat test --verbose"
+6. write_file: Fix identified issues
+7. execute_command: "npx hardhat deploy --network mumbai"
+```
+
+#### 🔄 Continuous Development
+```
+AI Prompt: "Add staking rewards feature, update tests, and redeploy"
+
+MCP Actions:
+1. read_file: Analyze current contract
+2. write_file: Add rewards mechanism
+3. write_file: Update test suite
+4. execute_command: "npx hardhat test"
+5. execute_command: "npx hardhat deploy --network mumbai"
+6. write_file: Update frontend components
+7. execute_command: "git add . && git commit -m 'feat: add staking rewards'"
+```
+
+### 🔐 Security Features
+
+The MCP server includes comprehensive security measures:
+
+- **Sandboxed Execution**: Commands run in controlled environment
+- **Path Validation**: File operations restricted to project directories
+- **Process Isolation**: Limited process management capabilities
+- **Timeout Protection**: Commands have execution time limits
+- **Audit Trail**: All operations logged with timestamps
+- **Configurable Permissions**: Enable/disable specific tools
+
+### 📊 MCP Server Architecture
+
+```mermaid
+sequenceDiagram
+    participant AI as AI Assistant
+    participant MCP as MCP Server
+    participant FS as File System
+    participant OS as Operating System
+    participant APP as Applications
+    
+    AI->>MCP: Request tool execution
+    MCP->>MCP: Validate permissions
+    MCP->>MCP: Security check
+    
+    alt File Operation
+        MCP->>FS: Read/Write files
+        FS-->>MCP: File data
+    else Command Execution
+        MCP->>OS: Execute command
+        OS-->>MCP: Command output
+    else Application Control
+        MCP->>APP: Launch application
+        APP-->>MCP: Process info
+    end
+    
+    MCP->>MCP: Log operation
+    MCP-->>AI: Return result
+```
+
+### 🎮 MCP Commands Reference
+
+```bash
+# Server Management
+raze mcp start          # Start MCP server daemon
+raze mcp stop           # Stop MCP server
+raze mcp status         # Check server status
+raze mcp cleanup        # Clean stale processes
+
+# Configuration
+raze mcp config         # Generate client configuration
+raze mcp --port 3001    # Start on custom port
+raze mcp --host 0.0.0.0 # Accept external connections
+
+# Interactive Menu
+raze mcp               # Open interactive menu
+```
+
+### 🤝 AI Assistant Integration
+
+#### Claude (Anthropic)
+```json
+{
+  "mcpServers": {
+    "raze-system": {
+      "command": "node",
+      "args": ["path/to/raze-cli/mcp-server.js"],
+      "env": {},
+      "capabilities": {
+        "tools": true,
+        "resources": true
+      }
+    }
+  }
+}
+```
+
+#### ChatGPT (Custom GPT)
+Use the generated configuration to connect Raze CLI as a custom action in your GPT.
+
+#### Local AI Models
+Works with any AI that supports MCP protocol:
+- Ollama with MCP support
+- Local LLMs with MCP adapters
+- Custom AI implementations
+
+### 💡 Use Cases
+
+#### For Individual Developers
+- **AI Pair Programming**: AI executes your ideas instantly
+- **Automated Setup**: Complete development environments in minutes
+- **Smart Debugging**: AI reads logs and fixes issues
+- **Code Generation**: AI writes and saves files directly
+
+#### For Teams
+- **Consistent Environments**: AI ensures same setup across team
+- **Documentation**: AI maintains project docs automatically
+- **Code Reviews**: AI analyzes and suggests improvements
+- **Deployment**: AI handles complex multi-chain deployments
+
+#### For Learning
+- **Interactive Tutorials**: AI guides through Web3 development
+- **Live Examples**: AI creates working dApps instantly
+- **Best Practices**: AI implements security patterns automatically
+- **Exploration**: AI helps discover new Web3 technologies
+
+### 🔮 Future Enhancements
+
+- **Remote MCP Access**: Cloud-based MCP servers
+- **Multi-Server Support**: Connect multiple development environments
+- **Visual Interface**: Web-based MCP management dashboard
+- **Team Collaboration**: Shared MCP configurations
+- **Cloud Integration**: AWS, GCP, Azure deployment automation
 
 ---
 
@@ -208,6 +452,18 @@ raze analyze --monitor GovernanceDAO.sol
 | `raze nft [action]`      | NFT development and marketplace tools     | `raze nft create --standard ERC1155`      |
 | `raze analyze [target]`  | Smart contract security analysis          | `raze analyze MyContract.sol`             |
 
+### 🔌 MCP Server Commands
+
+| Command               | Description                              | Example                    |
+| --------------------- | ---------------------------------------- | -------------------------- |
+| `raze mcp start`      | Start MCP server for AI integration     | `raze mcp start`           |
+| `raze mcp stop`       | Stop running MCP server                  | `raze mcp stop`            |
+| `raze mcp status`     | Check MCP server status                  | `raze mcp status`          |
+| `raze mcp cleanup`    | Clean up stale processes and PID files  | `raze mcp cleanup`         |
+| `raze mcp config`     | Generate AI assistant configuration      | `raze mcp config`          |
+| `raze mcp`            | Interactive MCP management menu          | `raze mcp`                 |
+| `raze setup`          | Complete AI integration setup wizard     | `raze setup`               |
+
 ### 🤖 AI & Development Commands
 
 | Command             | Description                      | Example                               |
@@ -248,6 +504,16 @@ raze analyze --monitor GovernanceDAO.sol
 | `--tool <tool>`   | Analysis tool (slither, mythx) | `slither`  |
 | `--chain <chain>` | Blockchain for analysis        | `ethereum` |
 | `--monitor`       | Enable continuous monitoring   | `false`    |
+
+#### MCP Server Options
+
+| Flag              | Description                    | Default     |
+| ----------------- | ------------------------------ | ----------- |
+| `--port <port>`   | MCP server port                | `3000`      |
+| `--host <host>`   | MCP server host                | `localhost` |
+| `--start`         | Start MCP server               | `false`     |
+| `--stop`          | Stop MCP server                | `false`     |
+| `--cleanup`       | Clean up stale processes       | `false`     |
 
 ---
 
