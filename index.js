@@ -20,6 +20,8 @@ import registerDefi from "./commands/defi.js";
 import registerNft from "./commands/nft.js";
 import registerAnalytics from "./commands/analyze.js";
 import registerDeploy from "./commands/deploy.js";
+import registerMcp from "./commands/mcp.js";
+import registerSetup from "./commands/setup.js";
 
 const program = new Command();
 
@@ -51,6 +53,8 @@ registerDefi(program);
 registerNft(program);
 registerAnalytics(program);
 registerDeploy(program);
+registerMcp(program);
+registerSetup(program);
 
 // parse CLI args
 program.parse(process.argv);
