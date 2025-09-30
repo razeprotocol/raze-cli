@@ -476,16 +476,17 @@ raze analyze --monitor GovernanceDAO.sol
 
 ### 🤖 AI & Development Commands
 
-| Command             | Description                      | Example                               |
-| ------------------- | -------------------------------- | ------------------------------------- |
-| `raze ai [prompt]`  | AI-powered development assistant | `raze ai "create a lending protocol"` |
-| `raze start`        | Interactive REPL session         | `raze start`                          |
-| `raze pwd`          | Print current working directory  | `raze pwd`                            |
-| `raze ls [dir]`     | List directory contents          | `raze ls contracts/`                  |
-| `raze cd <dir>`     | Change directory                 | `raze cd my-project`                  |
-| `raze mkdir <name>` | Create directory (recursive)     | `raze mkdir contracts/tokens`         |
-| `raze touch <file>` | Create or update file            | `raze touch Contract.sol`             |
-| `raze rm <target>`  | Remove file or directory         | `raze rm old-contracts/`              |
+| Command             | Description                           | Example                                      |
+| ------------------- | ------------------------------------- | -------------------------------------------- |
+| `raze ai [prompt]`  | AI-powered development assistant      | `raze ai "create a lending protocol"`       |
+| `raze rot [request]`| 🤖 Intelligent system agent assistant | `raze rot "open chrome and search web3 grants"` |
+| `raze start`        | Interactive REPL session              | `raze start`                                 |
+| `raze pwd`          | Print current working directory       | `raze pwd`                                   |
+| `raze ls [dir]`     | List directory contents               | `raze ls contracts/`                         |
+| `raze cd <dir>`     | Change directory                      | `raze cd my-project`                         |
+| `raze mkdir <name>` | Create directory (recursive)          | `raze mkdir contracts/tokens`                |
+| `raze touch <file>` | Create or update file                 | `raze touch Contract.sol`                    |
+| `raze rm <target>`  | Remove file or directory              | `raze rm old-contracts/`                     |
 
 ### 🔧 Command Options
 
