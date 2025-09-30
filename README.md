@@ -46,6 +46,11 @@ raze ai "create a DeFi lending protocol with flash loans"
 # Enable AI assistant control over your development environment
 raze mcp start && raze setup
 
+# Use ROT agent for system automation
+raze rot "open chrome and search web3 grants"
+raze rot "create a new folder called my-dapp and open it in vscode"
+raze rot "show me system information"
+
 # Deploy to multiple chains
 raze deploy --chains "ethereum,polygon,arbitrum" MyNFT.sol
 
@@ -120,6 +125,128 @@ End-to-end application creation:
 - **Frontend Integration**: React/Next.js with Web3 wallet connection
 - **Backend Services**: IPFS integration, subgraph creation
 - **Deployment Pipeline**: Automated CI/CD for Web3 projects
+
+---
+
+## 🤖 ROT Agent - Your Intelligent System Assistant
+
+ROT (Raze Operational Terminal) is an AI-powered system agent that can automate tasks across your development environment. Unlike `raze ai` which focuses on Web3 development, ROT is your personal assistant for system-level operations.
+
+### 🎯 What ROT Can Do
+
+- **🌐 Browser Automation**: Open Chrome, perform web searches, navigate to specific sites
+- **📁 File Management**: Create files/folders, organize project structure
+- **💻 Application Control**: Launch VS Code, file explorer, any installed applications
+- **🔧 System Operations**: Check system info, manage processes, run commands
+- **🔍 Smart Search**: Google, GitHub, YouTube searches with intelligent query building
+- **📋 Productivity**: Set reminders, send notifications, automate workflows
+
+### 🚀 ROT Quick Start
+
+```bash
+# Basic system info
+raze rot "show me system information"
+
+# Browser automation
+raze rot "open chrome and search for web3 grant websites"
+
+# Development workflow
+raze rot "create a new folder called my-dapp and open it in vscode"
+
+# File operations
+raze rot "create a file called README.md with project description"
+
+# Application launching
+raze rot "open file explorer in the current directory"
+
+# Smart searches
+raze rot "search github for solidity staking contracts"
+raze rot "search youtube for hardhat tutorial"
+```
+
+### 🎮 ROT Command Options
+
+```bash
+# Interactive mode (default)
+raze rot "your request here"
+
+# Auto-execute without confirmation
+raze rot "open chrome" --auto
+
+# Verbose output for debugging
+raze rot "show system info" --verbose
+
+# Get help
+raze rot --help
+```
+
+### 🧠 How ROT Works
+
+ROT uses Gemini AI to analyze your natural language requests and break them down into actionable system operations:
+
+```mermaid
+graph LR
+    A[User Request] --> B[Gemini AI Analysis]
+    B --> C[Action Planning]
+    C --> D[System Execution]
+    D --> E[Success Feedback]
+
+    B --> F[Fallback Parser]
+    F --> C
+```
+
+**Example Flow:**
+
+1. **Input**: "open chrome and search web3 grants"
+2. **AI Analysis**: Parse request → [OPEN_CHROME, SEARCH_GOOGLE]
+3. **Execution**: Launch Chrome → Navigate to Google search
+4. **Feedback**: ✅ Tasks completed successfully
+
+### 🔧 Available ROT Actions
+
+| Action               | Description                | Example Usage                       |
+| -------------------- | -------------------------- | ----------------------------------- |
+| `OPEN_CHROME`        | Launch Chrome browser      | "open chrome"                       |
+| `SEARCH_GOOGLE`      | Perform Google search      | "search for defi protocols"         |
+| `SEARCH_GITHUB`      | Search GitHub repositories | "find solidity contracts on github" |
+| `SEARCH_YOUTUBE`     | Search YouTube videos      | "search youtube for web3 tutorials" |
+| `OPEN_VSCODE`        | Launch VS Code             | "open this project in vscode"       |
+| `OPEN_FILE_EXPLORER` | Open file manager          | "open file explorer"                |
+| `CREATE_FILE`        | Create new files           | "create a file called contract.sol" |
+| `CREATE_FOLDER`      | Create directories         | "make a folder called contracts"    |
+| `GET_SYSTEM_INFO`    | Show system details        | "show me system information"        |
+| `RUN_COMMAND`        | Execute shell commands     | "run npm install"                   |
+| `SEND_NOTIFICATION`  | System notifications       | "remind me to deploy contracts"     |
+
+### 💡 ROT vs Other Commands
+
+| Command    | Purpose                    | Best For                                       |
+| ---------- | -------------------------- | ---------------------------------------------- |
+| `raze ai`  | Web3 development assistant | Smart contracts, DeFi protocols, dApp creation |
+| `raze rot` | System automation agent    | Browser tasks, file management, app launching  |
+| `raze mcp` | AI assistant integration   | Letting AI control development environment     |
+
+### 🎯 ROT Use Cases
+
+#### 🏗️ Project Setup Automation
+
+```bash
+raze rot "create a new react project folder, open it in vscode, and launch chrome with react docs"
+```
+
+#### 🔍 Research & Development
+
+```bash
+raze rot "search github for chainlink oracle examples and open the results"
+raze rot "search google for polygon gas optimization techniques"
+```
+
+#### 📋 Productivity Workflows
+
+```bash
+raze rot "show me current system resources and open task manager"
+raze rot "create project folders for contracts, scripts, and frontend"
+```
 
 ---
 
@@ -476,17 +603,17 @@ raze analyze --monitor GovernanceDAO.sol
 
 ### 🤖 AI & Development Commands
 
-| Command             | Description                           | Example                                      |
-| ------------------- | ------------------------------------- | -------------------------------------------- |
-| `raze ai [prompt]`  | AI-powered development assistant      | `raze ai "create a lending protocol"`       |
-| `raze rot [request]`| 🤖 Intelligent system agent assistant | `raze rot "open chrome and search web3 grants"` |
-| `raze start`        | Interactive REPL session              | `raze start`                                 |
-| `raze pwd`          | Print current working directory       | `raze pwd`                                   |
-| `raze ls [dir]`     | List directory contents               | `raze ls contracts/`                         |
-| `raze cd <dir>`     | Change directory                      | `raze cd my-project`                         |
-| `raze mkdir <name>` | Create directory (recursive)          | `raze mkdir contracts/tokens`                |
-| `raze touch <file>` | Create or update file                 | `raze touch Contract.sol`                    |
-| `raze rm <target>`  | Remove file or directory              | `raze rm old-contracts/`                     |
+| Command              | Description                           | Example                                         |
+| -------------------- | ------------------------------------- | ----------------------------------------------- |
+| `raze ai [prompt]`   | AI-powered development assistant      | `raze ai "create a lending protocol"`           |
+| `raze rot [request]` | 🤖 Intelligent system agent assistant | `raze rot "open chrome and search web3 grants"` |
+| `raze start`         | Interactive REPL session              | `raze start`                                    |
+| `raze pwd`           | Print current working directory       | `raze pwd`                                      |
+| `raze ls [dir]`      | List directory contents               | `raze ls contracts/`                            |
+| `raze cd <dir>`      | Change directory                      | `raze cd my-project`                            |
+| `raze mkdir <name>`  | Create directory (recursive)          | `raze mkdir contracts/tokens`                   |
+| `raze touch <file>`  | Create or update file                 | `raze touch Contract.sol`                       |
+| `raze rm <target>`   | Remove file or directory              | `raze rm old-contracts/`                        |
 
 ### 🔧 Command Options
 
