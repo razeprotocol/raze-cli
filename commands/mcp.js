@@ -5,6 +5,20 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
+// Helper function to get CLI directory and PID file path
+function getCliPaths() {
+  const currentFileUrl = import.meta.url;
+  const currentFilePath = new URL(currentFileUrl).pathname;
+  // Fix Windows path handling - remove leading slash on Windows
+  const cleanPath =
+    process.platform === "win32"
+      ? currentFilePath.substring(1)
+      : currentFilePath;
+  const cliDir = path.dirname(path.dirname(cleanPath));
+  const pidFile = path.join(cliDir, ".mcp-server.pid");
+  return { cliDir, pidFile };
+}
+
 export default function registerMcp(program) {
   program
     .command("mcp")
@@ -96,8 +110,10 @@ async function startMCPServer(opts) {
       return;
     }
 
-    // Start the server daemon
-    const serverPath = path.resolve("mcp-daemon.js");
+    // Get the CLI installation directory and paths
+    const { cliDir, pidFile } = getCliPaths();
+    const serverPath = path.join(cliDir, "mcp-daemon.js");
+
     console.log(chalk.gray(`Starting server daemon from: ${serverPath}`));
 
     const serverProcess = spawn("node", [serverPath], {
@@ -106,7 +122,6 @@ async function startMCPServer(opts) {
     });
 
     // Save PID for later management
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
     fs.writeFileSync(pidFile, serverProcess.pid.toString());
 
     serverProcess.unref();
@@ -148,7 +163,7 @@ async function stopMCPServer() {
   const spinner = ora("Stopping MCP server...").start();
 
   try {
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
+    const { pidFile } = getCliPaths();
 
     if (!fs.existsSync(pidFile)) {
       spinner.warn("No MCP server PID file found");
@@ -217,7 +232,7 @@ async function stopMCPServer() {
     spinner.fail(`Failed to stop MCP server: ${error.message}`);
 
     // Offer to clean up PID file anyway
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
+    const { pidFile } = getCliPaths();
     if (fs.existsSync(pidFile)) {
       console.log(
         chalk.yellow("💡 Tip: Run 'raze mcp cleanup' to remove stale PID file")
@@ -231,7 +246,7 @@ async function checkMCPStatus() {
 
   try {
     const isRunning = await checkServerRunning();
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
+    const { pidFile } = getCliPaths();
 
     if (isRunning && fs.existsSync(pidFile)) {
       const pid = fs.readFileSync(pidFile, "utf8").trim();
@@ -253,7 +268,7 @@ async function checkMCPStatus() {
 
 async function checkServerRunning() {
   try {
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
+    const { pidFile } = getCliPaths();
     if (!fs.existsSync(pidFile)) return false;
 
     const pid = parseInt(fs.readFileSync(pidFile, "utf8").trim());
@@ -546,7 +561,7 @@ async function cleanupMCP() {
   const spinner = ora("Cleaning up stale MCP server processes...").start();
 
   try {
-    const pidFile = path.join(process.cwd(), ".mcp-server.pid");
+    const { pidFile } = getCliPaths();
 
     // Check if PID file exists
     if (fs.existsSync(pidFile)) {
