@@ -22,6 +22,7 @@ import registerAnalytics from "./commands/analyze.js";
 import registerDeploy from "./commands/deploy.js";
 import registerMcp from "./commands/mcp.js";
 import registerSetup from "./commands/setup.js";
+import registerRot from "./commands/rot.js";
 
 const program = new Command();
 
@@ -55,6 +56,7 @@ registerAnalytics(program);
 registerDeploy(program);
 registerMcp(program);
 registerSetup(program);
+registerRot(program);
 
 // parse CLI args
 program.parse(process.argv);
