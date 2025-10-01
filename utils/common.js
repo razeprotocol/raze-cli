@@ -27,7 +27,9 @@ ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
          ..';:cloxkOOkkxooc:;'..
                ..,;;;,,..
 `;
-  const block = figlet.textSync("RAZE", { font: "ANSI Shadow" }).split("\n");
+  const block = figlet
+    .textSync("RAZE CLI", { font: "ANSI Shadow" })
+    .split("\n");
   const palette = [
     chalk.magentaBright,
     chalk.hex("#d147ff"),

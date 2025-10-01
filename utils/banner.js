@@ -11,27 +11,23 @@ export default function showBanner({
   if (noBanner) return;
 
   // Decorative swirl / mascot (safe-ascii)
-  const swirl = `              .,;::::,..
-          .:'';lllllc'........
-       .:'lkkkkkkkkkkkkkkkkkkkk:...
-     .:kkkkkkkkkkkkkkkkkkkkkkkkkkkdc.
-    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx,
-   .ckkkkkkkkkkkkkkkkkkko:'...':okkkkkkkko.
-  .okkkkkkkkkkkkkk:.         'okkkkkkko.
- .:kkkkkkkkkkkkkkc             ckkkkkkkd.
-.okkkkkkkkkkkkkkkc             ckkkkkkkko.
-ckkkkkkkkkkkkkkkk:             ckkkkkkkkko
-okkkkkkkkkkkkkkkk:             ckkkkkkkkko
-ckkkkkkkkkkkkkkkkc             ckkkkkkkkko
-'okkkkkkkkkkkkkkko.           .okkkkkkkkko
-.dkkkkkkkkkkkkkkkd.          .okkkkkkkkkk,
- .:kkkkkkkkkkkkkkkkc.      .:okkkkkkkkkkd.
-  .okkkkkkkkkkkkkkkkkc.  .:okkkkkkkkkkko.
-   .lkkkkkkkkkkkkkkkkkkxookkkkkkkkkkkko.
-    .ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkko.
-     .':oxkkkkkkkkkkkkkkkkkkkkkkkkxo,
-         ..';:cloxkOOkkxooc:;'..
-               ..,;;;,,..`;
+  const swirl = `           -#####=
+          -######-
+    +###=    -######:
+    ####* -#####%-................
+    ####*######:=#################-
+    ####* =%#-  =#################-
+:*%=  ####*           ...:**:......
+=####%==+++-              +####*
+ :*####%=                =%####+
+   *####%=              =%####+.
+     *####*.         +####-=%####*.
+       :::::=%+::::    .####:  =%##%-
+################  .*#%-+####:    +-
+%%%%%%%%%%%%%%%%.*###%=####:
+                .*####%=.####:
+               .*####%=  :####:
+              +%##%=     ****:`;
 
   // Figlet title
   let title = "raze";
