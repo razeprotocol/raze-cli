@@ -530,6 +530,244 @@ $env:PRIVATE_KEY = "your-private-key"                # Deployment (use test keys
 
 ---
 
+## 📖 User Guide - Your Personal Projects
+
+This guide shows you how to use Raze CLI for your own Web3 projects, from idea to deployment.
+
+### 🎯 Prerequisites
+
+Before starting, make sure you have:
+
+- **Node.js 18+** installed
+- **Git** for version control
+- A **code editor** (VS Code recommended)
+- **Web3 wallet** for testing (MetaMask, etc.)
+
+### 📦 Installation
+
+```bash
+# Clone and setup Raze CLI
+git clone https://github.com/razeprotocol/raze-cli.git
+cd raze-cli/cli/my-web3-cli
+npm install
+
+# Verify it works
+node index.js --help
+```
+
+### 🚀 Your First Project
+
+Let's create a complete ERC20 token project:
+
+```bash
+# 1. Create your workspace
+mkdir my-web3-projects
+cd my-web3-projects
+
+# 2. Scaffold your token project
+node /path/to/raze-cli/index.js scaffold my-awesome-token --template hardhat --contract erc20
+
+# 3. Navigate to your project
+cd my-awesome-token
+
+# 4. Install dependencies
+npm install
+
+# 5. Run tests to verify everything works
+node /path/to/raze-cli/index.js test
+
+# 6. Deploy to testnet
+node /path/to/raze-cli/index.js deploy contracts/MyAwesomeTokenToken.sol --testnet --auto
+```
+
+🎉 **Congratulations!** You just created, tested, and deployed your first token in under 5 minutes!
+
+### 🔧 Framework-Specific Examples
+
+#### **Hardhat Projects**
+
+```bash
+# ERC20 Token
+node index.js scaffold my-token --template hardhat --contract erc20
+
+# NFT Collection
+node index.js scaffold my-nft --template hardhat --contract erc721
+
+# Basic Contract
+node index.js scaffold my-contract --template hardhat --contract basic
+```
+
+#### **Foundry Projects**
+
+```bash
+# Foundry with ERC20
+node index.js scaffold my-defi --template foundry --contract erc20
+
+# Foundry with NFT
+node index.js scaffold my-nft-collection --template foundry --contract erc721
+```
+
+#### **Brownie Projects**
+
+```bash
+# Python-based development
+node index.js scaffold my-python-dapp --template brownie --contract erc20
+```
+
+### 🧪 Testing Your Projects
+
+```bash
+# Basic test run
+node /path/to/raze-cli/index.js test
+
+# Verbose output for debugging
+node /path/to/raze-cli/index.js test --verbose
+
+# Generate coverage report
+node /path/to/raze-cli/index.js test --coverage
+
+# Test on specific network
+node /path/to/raze-cli/index.js test --network polygon
+```
+
+### 🚀 Multi-Chain Deployment
+
+```bash
+# Deploy to single testnet
+node /path/to/raze-cli/index.js deploy contracts/MyContract.sol --testnet
+
+# Deploy to multiple testnets
+node /path/to/raze-cli/index.js deploy contracts/MyContract.sol --chains "ethereum,polygon,arbitrum" --testnet
+
+# Deploy to mainnet (with confirmation)
+node /path/to/raze-cli/index.js deploy contracts/MyContract.sol --chains "ethereum,polygon"
+
+# Deploy with verification
+node /path/to/raze-cli/index.js deploy contracts/MyContract.sol --testnet --verify
+
+# Auto-deploy without confirmations (testnet only)
+node /path/to/raze-cli/index.js deploy contracts/MyContract.sol --testnet --auto
+```
+
+### 🛠️ Common Workflows
+
+#### **DeFi Token Development**
+
+```bash
+# 1. Create DeFi token with staking
+node index.js scaffold defi-token --template hardhat --contract erc20
+cd defi-token
+npm install
+
+# 2. Add custom features to your contract
+# Edit contracts/DefiTokenToken.sol
+
+# 3. Test thoroughly
+node /path/to/raze-cli/index.js test --verbose
+
+# 4. Deploy to testnet first
+node /path/to/raze-cli/index.js deploy contracts/DefiTokenToken.sol --testnet
+
+# 5. After testing, deploy to mainnet
+node /path/to/raze-cli/index.js deploy contracts/DefiTokenToken.sol --chains "ethereum" --verify
+```
+
+#### **NFT Collection Launch**
+
+```bash
+# 1. Create NFT project
+node index.js scaffold my-nft-drop --template hardhat --contract erc721
+cd my-nft-drop
+npm install
+
+# 2. Customize your NFT contract
+# Edit contracts/MyNftDropNFT.sol
+
+# 3. Test minting functionality
+node /path/to/raze-cli/index.js test
+
+# 4. Deploy to testnet for testing
+node /path/to/raze-cli/index.js deploy contracts/MyNftDropNFT.sol --testnet
+
+# 5. Deploy to mainnet
+node /path/to/raze-cli/index.js deploy contracts/MyNftDropNFT.sol --chains "ethereum" --verify
+```
+
+#### **Multi-Chain dApp**
+
+```bash
+# Deploy same contract to multiple chains
+node /path/to/raze-cli/index.js deploy contracts/MyDApp.sol --chains "ethereum,polygon,arbitrum,base" --testnet
+
+# Deploy to all major L2s
+node /path/to/raze-cli/index.js deploy contracts/MyDApp.sol --chains "polygon,arbitrum,optimism,base" --verify
+```
+
+### 🔍 Exploring Generated Projects
+
+After scaffolding, your project will have:
+
+```
+my-project/
+├── contracts/          # Your smart contracts
+├── test/              # Automated tests
+├── scripts/           # Deployment scripts
+├── hardhat.config.js  # Network configuration
+├── package.json       # Dependencies
+├── .env.example       # Environment template
+└── README.md          # Project documentation
+```
+
+### 🐛 Troubleshooting
+
+**Contract compilation errors?**
+
+```bash
+# Check Solidity version compatibility
+# Edit hardhat.config.js to match your contract pragma
+```
+
+**Tests failing?**
+
+```bash
+# Run with verbose output to see details
+node /path/to/raze-cli/index.js test --verbose
+```
+
+**Deployment issues?**
+
+```bash
+# Ensure you have testnet ETH in your wallet
+# Check your .env file for correct API keys
+```
+
+**Command not found?**
+
+```bash
+# Use full path to index.js
+node /full/path/to/raze-cli/index.js scaffold my-project
+```
+
+### 📚 Next Steps
+
+Once you're comfortable with the basics:
+
+1. **Explore AI Features**: Use `raze ai` for smart contract generation
+2. **Setup MCP Integration**: Let AI assistants control your development
+3. **Advanced Deployment**: Configure custom networks and verification
+4. **Security Analysis**: Run `raze analyze` on your contracts
+5. **Plugin System**: Install community plugins for extended functionality
+
+### 💡 Pro Tips
+
+- Always test on testnets before mainnet deployment
+- Use `--auto` flag for CI/CD pipelines
+- Keep your API keys secure in `.env` files
+- Use version control for all your projects
+- Join our Discord for community support
+
+---
+
 ## 🎪 Demo Commands
 
 ### 🚀 Complete DeFi Protocol (5 minutes)
