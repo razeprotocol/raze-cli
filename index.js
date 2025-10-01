@@ -23,6 +23,8 @@ import registerDeploy from "./commands/deploy.js";
 import registerMcp from "./commands/mcp.js";
 import registerSetup from "./commands/setup.js";
 import registerRot from "./commands/rot.js";
+import registerScaffold from "./commands/scaffold.js";
+import registerTest from "./commands/test.js";
 
 const program = new Command();
 
@@ -57,6 +59,8 @@ registerDeploy(program);
 registerMcp(program);
 registerSetup(program);
 registerRot(program);
+registerScaffold(program);
+registerTest(program);
 
 // parse CLI args
 program.parse(process.argv);
