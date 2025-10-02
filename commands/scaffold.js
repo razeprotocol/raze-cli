@@ -106,12 +106,26 @@ async function scaffoldHardhatProject(projectPath, projectName, contractType) {
 module.exports = {
   solidity: "0.8.20",
   networks: {
+    hardhat: {
+      chainId: 31337
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545"
+    },
     sepolia: {
       url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     },
+    mainnet: {
+      url: process.env.MAINNET_URL || "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
     polygon: {
       url: process.env.POLYGON_URL || "https://polygon-rpc.com",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    mumbai: {
+      url: process.env.MUMBAI_URL || "https://rpc-mumbai.maticvigil.com",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
@@ -496,7 +510,7 @@ function getDeployTemplate(contractType, projectName) {
   const [deployer] = await ethers.getSigners();
   
   console.log("Deploying contracts with the account:", deployer.address);
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)));
 
   const Token = await ethers.getContractFactory("${contractName}");
   const token = await Token.deploy(1000000); // 1M tokens
@@ -516,14 +530,12 @@ main()
   const [deployer] = await ethers.getSigners();
   
   console.log("Deploying contracts with the account:", deployer.address);
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)));
 
   const Contract = await ethers.getContractFactory("${contractName}");
   const contract = await Contract.deploy("${projectName}");
 
-  await contract.deployed();
-
-  console.log("${contractName} deployed to:", contract.address);
+  console.log("${contractName} deployed to:", await contract.getAddress());
 }
 
 main()

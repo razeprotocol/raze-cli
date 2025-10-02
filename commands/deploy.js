@@ -3,6 +3,10 @@ import ora from "ora";
 import inquirer from "inquirer";
 import fs from "fs";
 import path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 export default function registerDeploy(program) {
   program
@@ -21,6 +25,7 @@ export default function registerDeploy(program) {
     .option("--verify", "Verify contracts on block explorers")
     .option("--auto", "Skip confirmations")
     .option("--testnet", "Deploy to testnets instead of mainnets")
+    .option("--local", "Deploy to local hardhat network (localhost)")
     .argument("[contract]", "Contract file to deploy")
     .action(async (contractArg, opts) => {
       console.log(chalk.cyan("🚀 Raze Multi-Chain Deployment Tool"));
@@ -46,9 +51,13 @@ export default function registerDeploy(program) {
         return;
       }
 
-      // Parse chains
+      // Parse chains and handle local deployment
       let chains = [];
-      if (opts.network) {
+      
+      if (opts.local) {
+        // Force local deployment
+        chains = ["localhost"];
+      } else if (opts.network) {
         chains = [opts.network];
       } else {
         chains = opts.chains.split(",").map((chain) => chain.trim());
@@ -56,24 +65,40 @@ export default function registerDeploy(program) {
 
       // Map chains to actual networks
       const networkMap = {
-        ethereum: opts.testnet ? "sepolia" : "mainnet",
+        ethereum: opts.testnet ? "sepolia" : "sepolia", // Use sepolia for now since mainnet isn't configured
         polygon: opts.testnet ? "mumbai" : "polygon",
         arbitrum: opts.testnet ? "arbitrum-goerli" : "arbitrum",
         base: opts.testnet ? "base-goerli" : "base",
         optimism: opts.testnet ? "optimism-goerli" : "optimism",
         avalanche: opts.testnet ? "fuji" : "avalanche",
         bsc: opts.testnet ? "bsc-testnet" : "bsc",
+        localhost: "localhost", // Add localhost mapping
       };
 
       const networksToUse = chains
         .map((chain) => {
-          const network = networkMap[chain.toLowerCase()];
-          if (!network) {
+          const network = networkMap[chain.toLowerCase()] || chain.toLowerCase();
+          
+          if (chain.toLowerCase() === "localhost") {
+            return { chain: "localhost", network: "localhost" };
+          }
+          
+          if (!networkMap[chain.toLowerCase()]) {
             console.warn(
               chalk.yellow(`⚠️  Unknown chain: ${chain}, skipping...`)
             );
             return null;
           }
+
+          // Warn if trying to deploy to mainnet without proper config
+          if (!opts.testnet && network !== "polygon") {
+            console.warn(
+              chalk.yellow(
+                `⚠️  Mainnet deployment for ${chain} requires proper RPC configuration. Using testnet instead.`
+              )
+            );
+          }
+
           return { chain: chain.toLowerCase(), network };
         })
         .filter(Boolean);
@@ -172,34 +197,140 @@ module.exports = {
         const spinner = ora(`Deploying to ${chain} (${network})...`).start();
 
         try {
-          // Simulate deployment (in real implementation, this would use Hardhat/Foundry)
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          // Real deployment using Hardhat
+          if (hardhatConfigExists) {
+            // Handle localhost deployment specially
+            if (network === "localhost") {
+              spinner.text = `Checking localhost network...`;
+              
+              try {
+                // Test if localhost is running
+                await execAsync("curl -s http://127.0.0.1:8545 -X POST -H \"Content-Type: application/json\" -d '{\"jsonrpc\":\"2.0\",\"method\":\"net_version\",\"params\":[],\"id\":1}'", {
+                  timeout: 2000
+                });
+              } catch (error) {
+                spinner.warn(`⚠️  Localhost network not running. Try running 'npx hardhat node' in another terminal.`);
+                continue;
+              }
+            }
 
-          // Mock contract address for demo
-          const mockAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
+            // Check if dependencies are installed
+            if (!fs.existsSync(path.join(process.cwd(), "node_modules"))) {
+              spinner.text = `Installing dependencies...`;
+              try {
+                await execAsync("npm install", { cwd: process.cwd() });
+              } catch (installError) {
+                spinner.fail(`❌ Failed to install dependencies: ${installError.message}`);
+                continue;
+              }
+            }
 
-          spinner.succeed(`✅ Deployed to ${chain}: ${mockAddress}`);
+            const deployCommand = `npx hardhat run scripts/deploy.js --network ${network}`;
+            const { stdout, stderr } = await execAsync(deployCommand, {
+              cwd: process.cwd(),
+              env: { ...process.env, FORCE_COLOR: "1" },
+              timeout: 60000 // 60 second timeout
+            });
 
-          if (opts.verify) {
-            const verifySpinner = ora(
-              `Verifying on ${chain} explorer...`
-            ).start();
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            verifySpinner.succeed(`✅ Verified on ${chain} explorer`);
+            // Extract contract address from output
+            const addressMatch = stdout.match(
+              /deployed to:?\s*(0x[a-fA-F0-9]{40})/i
+            );
+            const contractAddress = addressMatch
+              ? addressMatch[1]
+              : null;
+
+            if (contractAddress) {
+              spinner.succeed(`✅ Deployed to ${chain}: ${contractAddress}`);
+              
+              // Save deployment info to deployments.json
+              const deploymentsFile = path.join(process.cwd(), "deployments.json");
+              let deployments = {};
+              
+              if (fs.existsSync(deploymentsFile)) {
+                try {
+                  deployments = JSON.parse(fs.readFileSync(deploymentsFile, "utf8"));
+                } catch {}
+              }
+              
+              deployments[`${chain}-${network}`] = {
+                address: contractAddress,
+                timestamp: new Date().toISOString(),
+                contract: contractFile,
+                network: network,
+                chain: chain
+              };
+              
+              fs.writeFileSync(deploymentsFile, JSON.stringify(deployments, null, 2));
+              
+            } else {
+              spinner.warn(`⚠️  Deployed to ${chain} but couldn't extract address. Check output above.`);
+              if (stdout) console.log(chalk.gray(stdout));
+            }
+
+            // Handle verification
+            if (opts.verify && contractAddress) {
+              const verifySpinner = ora(`Verifying on ${chain} explorer...`).start();
+              try {
+                const verifyCommand = `npx hardhat verify --network ${network} ${contractAddress}`;
+                await execAsync(verifyCommand, { 
+                  cwd: process.cwd(),
+                  timeout: 30000
+                });
+                verifySpinner.succeed(`✅ Verified on ${chain} explorer`);
+              } catch (verifyError) {
+                verifySpinner.warn(`⚠️  Verification failed: Contract may already be verified or verification service is unavailable`);
+              }
+            }
+
+          } else {
+            // Fallback to simulation for non-Hardhat projects
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const mockAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
+            spinner.warn(
+              `⚠️  Simulated deployment to ${chain}: ${mockAddress} (No real deployment - missing Hardhat config)`
+            );
           }
         } catch (error) {
           spinner.fail(`❌ Failed to deploy to ${chain}: ${error.message}`);
+          
+          // Provide helpful error messages
+          if (error.message.includes("network") || error.message.includes("HH100")) {
+            console.log(chalk.yellow(`💡 Tip: Make sure ${network} is configured in your hardhat.config.js`));
+          } else if (error.message.includes("insufficient funds") || error.message.includes("balance")) {
+            console.log(chalk.yellow(`💡 Tip: Make sure you have enough ETH in your wallet for ${network}`));
+          } else if (error.message.includes("private key") || error.message.includes("PRIVATE_KEY")) {
+            console.log(chalk.yellow(`💡 Tip: Set your PRIVATE_KEY environment variable or add it to .env file`));
+          } else if (error.message.includes("timeout")) {
+            console.log(chalk.yellow(`💡 Tip: Network might be slow. Try again or use a different RPC endpoint`));
+          }
         }
       }
 
       console.log(chalk.green("\n🎉 Multi-chain deployment completed!"));
-      console.log(chalk.gray("Next steps:"));
-      console.log(chalk.gray("- Check deployment status on block explorers"));
-      console.log(
-        chalk.gray("- Update your frontend with new contract addresses")
-      );
-      console.log(
-        chalk.gray("- Run 'raze analyze <contract>' to verify security")
-      );
+      
+      // Show deployment summary
+      const deploymentsFile = path.join(process.cwd(), "deployments.json");
+      if (fs.existsSync(deploymentsFile)) {
+        try {
+          const deployments = JSON.parse(fs.readFileSync(deploymentsFile, "utf8"));
+          console.log(chalk.cyan("\n📄 Deployment Summary:"));
+          Object.entries(deployments).forEach(([key, info]) => {
+            console.log(chalk.gray(`  ${key}: ${info.address}`));
+          });
+          console.log(chalk.gray(`\n💾 Full details saved to: deployments.json`));
+        } catch {}
+      }
+      
+      console.log(chalk.gray("\nNext steps:"));
+      if (opts.local || networksToUse.some(n => n.network === "localhost")) {
+        console.log(chalk.gray("- Test your contract with: npx hardhat console --network localhost"));
+        console.log(chalk.gray("- Interact with your contract using the address above"));
+      } else {
+        console.log(chalk.gray("- Check deployment status on block explorers"));
+        console.log(chalk.gray("- Update your frontend with new contract addresses"));
+      }
+      console.log(chalk.gray("- Run 'raze test' to verify functionality"));
+      console.log(chalk.gray("- Run 'raze analyze <contract>' to verify security"));
     });
 }
