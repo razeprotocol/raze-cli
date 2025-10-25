@@ -2,13 +2,157 @@ import chalk from "chalk";
 import ora from "ora";
 import inquirer from "inquirer";
 import { spawn } from "child_process";
+import { promisify } from "util";
+import { exec as _exec } from "child_process";
+import fetch from "node-fetch";
 import fs from "fs";
 import path from "path";
+import os from "os";
+const exec = promisify(_exec);
+
+// Single registerMcp that supports both scripted and interactive use.
+export default function registerMcp(program) {
+  program
+    .command("mcp")
+    .description("Model Context Protocol (MCP) helpers for Celo: install | config | status | start | run-stub")
+    .argument("[action]", "Action: install|config|status|start|run-stub")
+    .option("--port <port>", "Port to run MCP server on", "5005")
+    .action(async (action, opts) => {
+      if (!action) {
+        const ans = await inquirer.prompt([
+          { type: "list", name: "action", message: "Select MCP action:", choices: ["install", "config", "status", "start", "run-stub"] },
+        ]);
+        action = ans.action;
+      }
+
+      switch (action) {
+        case "install":
+          return printInstall();
+        case "config":
+          return await writeCursorConfig();
+        case "status":
+          return await checkStatus(opts.port);
+        case "start":
+          return await startOfficialOrStub(opts.port);
+        case "run-stub":
+          return await startStub(opts.port);
+        default:
+          console.log(chalk.yellow("Unknown mcp action; use install|config|status|start|run-stub"));
+      }
+    });
+}
+
+async function printInstall() {
+  console.log(chalk.cyan("Celo MCP - installation help"));
+  console.log("The official Celo MCP server is a Python package. Recommended install options:");
+  console.log("\n1) pipx (recommended):");
+  console.log(chalk.gray("  pip install pipx && pipx install celo-mcp"));
+  console.log("\n2) From source:");
+  console.log(chalk.gray("  git clone https://github.com/celo-org/celo-mcp && cd celo-mcp && pip install -e ."));
+  console.log("\nOnce installed, you can run: python -m celo_mcp.server");
+  console.log("See: https://docs.celo.org/build-on-celo/build-with-ai/mcp/celo-mcp\n");
+}
+
+async function writeCursorConfig() {
+  const cfg = {
+    mcpServers: {
+      "celo-mcp": {
+        command: "python",
+        args: ["-m", "celo_mcp.server"]
+      }
+    }
+  };
+  const home = os.homedir();
+  const cursorDir = path.join(home, ".cursor");
+  const out = path.join(cursorDir, "mcp.json");
+  try {
+    await exec(`mkdir -p "${cursorDir}"`);
+    await exec(`printf '%s' '${JSON.stringify(cfg, null, 2)}' > "${out}"`);
+    console.log(chalk.green(`Wrote MCP client config to ${out}`));
+    console.log(chalk.gray("Tip: update paths to match your environment (e.g., use pipx-installed command)") );
+  } catch (e) {
+    console.error(chalk.red("Failed to write config:"), e.message);
+  }
+}
+
+async function checkStatus(port = 5005) {
+  const spinner = ora(`Checking MCP server at http://localhost:${port}/health`).start();
+  try {
+    const res = await fetch(`http://localhost:${port}/health`, { timeout: 2000 });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const j = await res.json();
+    spinner.succeed("MCP server is responding");
+    console.log(j);
+  } catch (e) {
+    spinner.fail("MCP server not reachable");
+    console.log(chalk.gray("Hint: run `raze mcp start` to launch the official Celo MCP server (requires Python) or `raze mcp run-stub` to run a lightweight Node stub."));
+  }
+}
+
+async function startOfficialOrStub(port = 5005) {
+  const spinner = ora("Starting official Celo MCP server (python -m celo_mcp.server)").start();
+
+  // Try to spawn the official python MCP server. If python is not available or
+  // the module isn't installed, fallback to the Node stub.
+  const child = spawn("python", ["-m", "celo_mcp.server"], { stdio: "inherit" });
+
+  let handledFallback = false;
+
+  child.on("error", async (err) => {
+    if (handledFallback) return;
+    handledFallback = true;
+    spinner.fail("Failed to spawn python MCP server; falling back to node stub");
+    console.log(chalk.yellow("Python not found or spawn error:"), err.message);
+    await startStub(port);
+  });
+
+  child.on("exit", async (code, signal) => {
+    if (handledFallback) return;
+    if (code === 0) {
+      spinner.succeed("Started python MCP server (attached output). Ctrl-C to stop.");
+    } else {
+      handledFallback = true;
+      spinner.fail(`python MCP server exited with code ${code || signal}; falling back to node stub`);
+      await startStub(port);
+    }
+    console.log(chalk.yellow(`celo_mcp.server exited with ${code || signal}`));
+  });
+
+  // If the process was spawned successfully, show a spinner message but wait
+  // for exit/error handlers to decide whether to fallback.
+  // We don't call spinner.succeed here because the process may exit immediately
+  // when the module is missing.
+}
+
+async function startStub(port = 5005) {
+  const spinner = ora("Starting local Node MCP stub").start();
+  try {
+    // Resolve mcp-server.js relative to the CLI installation directory
+    const { cliDir } = getCliPaths();
+    const nodePath = path.join(cliDir, "mcp-server.js");
+
+    if (!fs.existsSync(nodePath)) {
+      spinner.fail("MCP stub not found");
+      console.log(chalk.red(`Expected stub at: ${nodePath}`));
+      console.log(chalk.gray("Tip: run this command from the raze-cli repo root or create a 'mcp-server.js' stub in the CLI root."));
+      return;
+    }
+
+    const proc = spawn("node", [nodePath, "--port", String(port)], { stdio: "inherit" });
+    spinner.succeed(`MCP stub running on http://localhost:${port} (attached). Ctrl-C to stop.`);
+    proc.on("exit", (code) => {
+      console.log(chalk.yellow(`mcp-server.js exited with ${code}`));
+    });
+  } catch (e) {
+    spinner.fail("Failed to start MCP stub: " + e.message);
+  }
+}
 
 // Helper function to get CLI directory and PID file path
 function getCliPaths() {
   const currentFileUrl = import.meta.url;
-  const currentFilePath = new URL(currentFileUrl).pathname;
+  // decodeURIComponent fixes percent-encoded characters (e.g., spaces -> %20)
+  const currentFilePath = decodeURIComponent(new URL(currentFileUrl).pathname);
   // Fix Windows path handling - remove leading slash on Windows
   const cleanPath =
     process.platform === "win32"
@@ -17,37 +161,6 @@ function getCliPaths() {
   const cliDir = path.dirname(path.dirname(cleanPath));
   const pidFile = path.join(cliDir, ".mcp-server.pid");
   return { cliDir, pidFile };
-}
-
-export default function registerMcp(program) {
-  program
-    .command("mcp")
-    .description("Model Context Protocol server for system integration")
-    .option("--start", "Start the MCP server")
-    .option("--stop", "Stop the MCP server")
-    .option("--status", "Check MCP server status")
-    .option("--config", "Configure MCP server settings")
-    .option("--cleanup", "Clean up stale PID files and processes")
-    .option("--port <port>", "Port for MCP server", "3000")
-    .option("--host <host>", "Host for MCP server", "localhost")
-    .argument("[action]", "MCP action to perform")
-    .action(async (action, opts) => {
-      console.log(chalk.cyan("🔌 Raze MCP Server Control"));
-
-      if (opts.start || action === "start") {
-        await startMCPServer(opts);
-      } else if (opts.stop || action === "stop") {
-        await stopMCPServer();
-      } else if (opts.status || action === "status") {
-        await checkMCPStatus();
-      } else if (opts.config || action === "config") {
-        await configureMCP();
-      } else if (opts.cleanup || action === "cleanup") {
-        await cleanupMCP();
-      } else {
-        await showMCPMenu();
-      }
-    });
 }
 
 async function showMCPMenu() {

@@ -1,3 +1,105 @@
+#!/usr/bin/env node
+// Lightweight Node MCP-compatible stub for local development and testing.
+// This stub implements a small subset of the Celo MCP API surface as described
+// in: https://docs.celo.org/build-on-celo/build-with-ai/mcp/celo-mcp
+// It's intentionally conservative — it will not execute arbitrary shell commands.
+
+import express from "express";
+import fetch from "node-fetch";
+import bodyParser from "body-parser";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+
+const argv = yargs(hideBin(process.argv)).option("port", {
+  type: "number",
+  default: 5005,
+}).argv;
+
+const PORT = argv.port || 5005;
+const CELO_RPC = process.env.CELO_RPC_URL || "https://forno.celo.org";
+
+const app = express();
+app.use(bodyParser.json());
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", rpc: CELO_RPC });
+});
+
+app.get("/tools", (req, res) => {
+  res.json({
+    tools: [
+      "get_network_status",
+      "get_block",
+      "get_latest_blocks",
+      "get_account",
+      "get_transaction",
+      "get_token_info",
+      "get_token_balance",
+      "get_celo_balances",
+      "get_nft_info",
+      "get_nft_balance",
+      "call_contract_function",
+      "estimate_contract_gas",
+      "estimate_transaction",
+      "get_gas_fee_data",
+      "get_governance_proposals",
+      "get_proposal_details",
+    ],
+  });
+});
+
+// Proxy helper to call JSON-RPC on CELO_RPC
+async function rpcCall(method, params = []) {
+  const body = { jsonrpc: "2.0", id: 1, method, params };
+  const r = await fetch(CELO_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+app.get("/get_network_status", async (req, res) => {
+  try {
+    const ch = await rpcCall("eth_chainId", []);
+    res.json({ chainId: ch.result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/get_block", async (req, res) => {
+  const number = req.query.number || "latest";
+  try {
+    const b = await rpcCall("eth_getBlockByNumber", [number, true]);
+    res.json(b.result || b);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/get_account", async (req, res) => {
+  const address = req.query.address;
+  if (!address) return res.status(400).json({ error: "address required" });
+  try {
+    const bal = await rpcCall("eth_getBalance", [address, "latest"]);
+    res.json({ address, balance: bal.result });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Basic execute endpoint: for safety this is a no-op that echoes the requested tool and args.
+app.post("/execute", async (req, res) => {
+  const { tool, args } = req.body || {};
+  // Do not execute arbitrary code in the stub. Return a structured acknowledgement.
+  res.json({ status: "ok", tool: tool || null, args: args || null, note: "stub - no-op" });
+});
+
+app.listen(PORT, () => {
+  console.log(`MCP stub listening on http://localhost:${PORT}`);
+  console.log(`Using CELO_RPC=${CELO_RPC}`);
+});
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
