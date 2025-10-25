@@ -1,0 +1,5 @@
+[
+  { "symbol": "cUSD", "address": "0x765DE816845861e75A25fCA122bb6898B8B1282a", "decimals": 18 },
+  { "symbol": "cEUR", "address": "0xD8763CBa276a3738E6De85b4b3BF5FDed6D6cA73", "decimals": 18 },
+  { "symbol": "cREAL", "address": "0xE4d517785D091D3c54818832dB6094bcc2744545", "decimals": 18 }
+]

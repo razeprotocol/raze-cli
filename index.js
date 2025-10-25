@@ -25,6 +25,7 @@ import registerSetup from "./commands/setup.js";
 import registerRot from "./commands/rot.js";
 import registerScaffold from "./commands/scaffold.js";
 import registerTest from "./commands/test.js";
+import registerCelo from "./commands/celo.js";
 
 const program = new Command();
 
@@ -61,6 +62,7 @@ registerSetup(program);
 registerRot(program);
 registerScaffold(program);
 registerTest(program);
+registerCelo(program);
 
 // parse CLI args
 program.parse(process.argv);
