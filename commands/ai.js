@@ -17,7 +17,7 @@ export default function registerAi(program) {
     )
     .option("--force", "Force destructive actions where applicable")
     .action(async (promptParts, opts) => {
-      const apiKey = "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
+      const apiKey = "AIzaSyAqAr-Tkg7Ft7iSmUyEFSLbn-smk1sPCnQ";
       if (!apiKey) {
         console.error(
           chalk.red(

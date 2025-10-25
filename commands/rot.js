@@ -935,7 +935,7 @@ export default function registerRot(program) {
     .option("--auto", "Automatically execute actions without confirmation")
     .option("--verbose", "Show detailed execution information")
     .action(async (requestParts, opts) => {
-      const apiKey = "AIzaSyCadIp6D7oWiF9k8-rrgZ8DiPcohA0F-pA";
+      const apiKey = "AIzaSyAqAr-Tkg7Ft7iSmUyEFSLbn-smk1sPCnQ";
 
       // Show ROT banner
       console.log(chalk.magentaBright("🤖 ROT Agent"));

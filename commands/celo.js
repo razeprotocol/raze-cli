@@ -57,6 +57,31 @@ export default function registerCelo(program) {
     });
 }
 
+async function scaffoldCeloReactApp(projectPath, appName) {
+  // Clone external template repo into projectPath
+  const repo = "https://github.com/vinsmoke24033/celo-minidapp.git";
+  // Ensure parent directory exists but avoid creating the target dir (git will create it)
+  const parent = path.dirname(projectPath);
+  fs.mkdirSync(parent, { recursive: true });
+  try {
+    // Clone shallow for speed
+    await exec(`git clone --depth 1 ${repo} "${projectPath}"`);
+  } catch (e) {
+    throw new Error(`Failed to clone template repo. Ensure git is installed and network is available. ${e.message}`);
+  }
+
+  // Remove .git to detach from source repo
+  try { fs.rmSync(path.join(projectPath, ".git"), { recursive: true, force: true }); } catch {}
+
+  // Update package name
+  try {
+    const pkgPath = path.join(projectPath, "package.json");
+    const pkgJson = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+    pkgJson.name = appName;
+    fs.writeFileSync(pkgPath, JSON.stringify(pkgJson, null, 2));
+  } catch {}
+}
+
 async function handleAnalytics(opts) {
   const spinner = ora("Fetching Celo analytics...").start();
   try {
@@ -229,6 +254,7 @@ async function handleScaffold(program, opts) {
         choices: [
           { name: "NFT Drop (ERC721 + cUSD payments)", value: "nft-drop" },
           { name: "Microfinance (cUSD lending)", value: "microfinance" },
+          { name: "Celo App (React mini dApp)", value: "celo-app" },
         ],
         when: !ans.template,
       },
@@ -252,33 +278,36 @@ async function handleScaffold(program, opts) {
     return;
   }
 
-  const spinner = ora("Creating Celo Hardhat project...").start();
+  const spinner = ora(ans.template === "celo-app" ? "Cloning Celo mini dApp template..." : "Creating Celo Hardhat project...").start();
   try {
-    fs.mkdirSync(projectPath, { recursive: true });
+    if (ans.template === "celo-app") {
+      await scaffoldCeloReactApp(projectPath, ans.name);
+    } else {
+      fs.mkdirSync(projectPath, { recursive: true });
 
-    // package.json
-    const pkg = {
-      name: ans.name,
-      version: "1.0.0",
-      private: true,
-      scripts: {
-        compile: "npx hardhat compile",
-        test: "npx hardhat test",
-        deploy: "npx hardhat run scripts/deploy.js --network celo",
-      },
-      devDependencies: {
-        hardhat: "^2.19.0",
-        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-      },
-      dependencies: {
-        "@openzeppelin/contracts": "^5.0.0",
-        ethers: "^6.8.0",
-      },
-    };
-    fs.writeFileSync(path.join(projectPath, "package.json"), JSON.stringify(pkg, null, 2));
+      // package.json
+      const pkg = {
+        name: ans.name,
+        version: "1.0.0",
+        private: true,
+        scripts: {
+          compile: "npx hardhat compile",
+          test: "npx hardhat test",
+          deploy: "npx hardhat run scripts/deploy.js --network celo",
+        },
+        devDependencies: {
+          hardhat: "^2.19.0",
+          "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        },
+        dependencies: {
+          "@openzeppelin/contracts": "^5.0.0",
+          ethers: "^6.8.0",
+        },
+      };
+      fs.writeFileSync(path.join(projectPath, "package.json"), JSON.stringify(pkg, null, 2));
 
-    // hardhat.config.js
-    const hardhatConfig = `require("@nomicfoundation/hardhat-toolbox");
+      // hardhat.config.js
+      const hardhatConfig = `require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -319,44 +348,50 @@ module.exports = {
   }
 };
 `;
-    fs.writeFileSync(path.join(projectPath, "hardhat.config.js"), hardhatConfig);
+      fs.writeFileSync(path.join(projectPath, "hardhat.config.js"), hardhatConfig);
 
-    // contracts
-    const contractsDir = path.join(projectPath, "contracts");
-    fs.mkdirSync(contractsDir);
+      // contracts
+      const contractsDir = path.join(projectPath, "contracts");
+      fs.mkdirSync(contractsDir);
 
-    if (ans.template === "nft-drop") {
-      fs.writeFileSync(path.join(contractsDir, "CeloNFTDrop.sol"), NFT_DROP_CONTRACT);
-    } else {
-      fs.writeFileSync(path.join(contractsDir, "Microfinance.sol"), MICROFINANCE_CONTRACT);
-    }
+      if (ans.template === "nft-drop") {
+        fs.writeFileSync(path.join(contractsDir, "CeloNFTDrop.sol"), NFT_DROP_CONTRACT);
+      } else {
+        fs.writeFileSync(path.join(contractsDir, "Microfinance.sol"), MICROFINANCE_CONTRACT);
+      }
 
-    // scripts
-    const scriptsDir = path.join(projectPath, "scripts");
-    fs.mkdirSync(scriptsDir);
-    const deployScript = ans.template === "nft-drop" ? DEPLOY_NFT_DROP : DEPLOY_MICROFINANCE;
-    fs.writeFileSync(path.join(scriptsDir, "deploy.js"), deployScript);
+      // scripts
+      const scriptsDir = path.join(projectPath, "scripts");
+      fs.mkdirSync(scriptsDir);
+      const deployScript = ans.template === "nft-drop" ? DEPLOY_NFT_DROP : DEPLOY_MICROFINANCE;
+      fs.writeFileSync(path.join(scriptsDir, "deploy.js"), deployScript);
 
-    // README
-    fs.writeFileSync(
-      path.join(projectPath, "README.md"),
-      getReadme(ans.name, ans.template)
-    );
+      // README
+      fs.writeFileSync(
+        path.join(projectPath, "README.md"),
+        getReadme(ans.name, ans.template)
+      );
 
-    // .env.example
-    const env = `# Private key without 0x
+      // .env.example
+      const env = `# Private key without 0x
 PRIVATE_KEY=your_private_key_here
 CELO_RPC_URL=${CELO_NETWORKS.mainnet.rpcUrl}
 CELO_SEPOLIA_RPC_URL=${CELO_NETWORKS.sepolia.rpcUrl}
 `;
-    fs.writeFileSync(path.join(projectPath, ".env.example"), env);
+      fs.writeFileSync(path.join(projectPath, ".env.example"), env);
+    }
 
     spinner.succeed("Celo project scaffolded!");
     console.log(chalk.yellow(`\nNext steps:`));
     console.log(`cd ${ans.name}`);
-    console.log(`npm install`);
-    console.log(`cp .env.example .env && edit PRIVATE_KEY`);
-    console.log(`npx hardhat run scripts/deploy.js --network ${ans.network === "mainnet" ? "celo" : "celo_sepolia"}`);
+    if (ans.template === "celo-app") {
+      console.log(`npm install`);
+      console.log(`npm run dev`);
+    } else {
+      console.log(`npm install`);
+      console.log(`cp .env.example .env && edit PRIVATE_KEY`);
+      console.log(`npx hardhat run scripts/deploy.js --network ${ans.network === "mainnet" ? "celo" : "celo_sepolia"}`);
+    }
   } catch (e) {
     spinner.fail(`Failed: ${e.message}`);
   }
@@ -490,7 +525,8 @@ const CUSD = process.env.CUSD_ADDRESS || "0x765DE816845861e75A25fCA122bb6898B8B1
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  console.log("Deployer:", deployer.address);
+  const deployerAddress = await deployer.getAddress();
+  console.log("Deployer:", deployerAddress);
 
   const price = ethers.parseUnits("5", 18); // 5 cUSD
   const baseURI = "https://your.cdn/metadata/";
@@ -510,7 +546,8 @@ const CUSD = process.env.CUSD_ADDRESS || "0x765DE816845861e75A25fCA122bb6898B8B1
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  console.log("Deployer:", deployer.address);
+  const deployerAddress = await deployer.getAddress();
+  console.log("Deployer:", deployerAddress);
   const F = await ethers.getContractFactory("Microfinance");
   const c = await F.deploy(CUSD);
   await c.waitForDeployment();
