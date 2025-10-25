@@ -24,22 +24,31 @@ export default function registerDeploy(program) {
     )
     .option("--verify", "Verify contracts on block explorers")
     .option("--auto", "Skip confirmations")
+  .option("--dry-run", "Print the deployment commands without executing them")
     .option("--testnet", "Deploy to testnets instead of mainnets")
     .option("--local", "Deploy to local hardhat network (localhost)")
-    .argument("[contract]", "Contract file to deploy")
+    .argument("[contract]", "Contract file to deploy (optional if scripts/deploy.js exists)")
     .action(async (contractArg, opts) => {
       console.log(chalk.cyan("🚀 Raze Multi-Chain Deployment Tool"));
 
       // Determine contract to deploy
-      const contractFile = contractArg || opts.contract;
+      let contractFile = contractArg || opts.contract;
+      let usingDefaultScript = false;
+      // Allow default Hardhat script when none is specified
       if (!contractFile) {
-        console.error(chalk.red("❌ Error: No contract file specified"));
-        console.log(
-          chalk.yellow(
-            'Usage: raze deploy MyContract.sol --chains "ethereum,polygon"'
-          )
-        );
-        return;
+        const defaultScript = path.resolve("scripts/deploy.js");
+        if (fs.existsSync(defaultScript)) {
+          usingDefaultScript = true;
+          contractFile = "scripts/deploy.js";
+        } else {
+          console.error(chalk.red("❌ Error: No contract file specified and scripts/deploy.js not found"));
+          console.log(
+            chalk.yellow(
+              'Tip: Place a deploy script at scripts/deploy.js or pass a contract file: raze deploy MyContract.sol --chains "celo"'
+            )
+          );
+          return;
+        }
       }
 
       // Check if contract file exists
@@ -52,16 +61,46 @@ export default function registerDeploy(program) {
       }
 
       // Parse chains and handle local deployment
-      let chains = [];
+      // Accept many aliases (celo, celo-sepolia, celo_sepolia, sepolia)
+      const CHAIN_ALIASES = {
+        celo: "celo",
+        "celo-mainnet": "celo",
+        "celo_mainnet": "celo",
+        "celo-sepolia": "celo_sepolia",
+        "celo_sepolia": "celo_sepolia",
+        sepolia: "celo_sepolia",
+        ethereum: "ethereum",
+        eth: "ethereum",
+        polygon: "polygon",
+        mumbai: "mumbai",
+        arbitrum: "arbitrum",
+        "arbitrum-goerli": "arbitrum-goerli",
+        base: "base",
+        optimism: "optimism",
+        avalanche: "avalanche",
+        bsc: "bsc",
+        localhost: "localhost",
+      };
 
+      function normalizeChain(input) {
+        if (!input) return null;
+        const key = String(input).trim().toLowerCase().replace(/[-\s]+/g, "_");
+        return CHAIN_ALIASES[key] || key;
+      }
+
+      let chains = [];
       if (opts.local) {
-        // Force local deployment
         chains = ["localhost"];
       } else if (opts.network) {
         chains = [opts.network];
       } else {
         chains = opts.chains.split(",").map((chain) => chain.trim());
       }
+
+      // Normalize aliases (user-friendly names) to internal network keys
+      const normalizedChains = chains
+        .map((c) => normalizeChain(c))
+        .filter(Boolean);
 
       // Map chains to actual networks
       const networkMap = {
@@ -72,21 +111,21 @@ export default function registerDeploy(program) {
         optimism: opts.testnet ? "optimism-goerli" : "optimism",
         avalanche: opts.testnet ? "fuji" : "avalanche",
         bsc: opts.testnet ? "bsc-testnet" : "bsc",
+        celo: opts.testnet ? "celo_sepolia" : "celo",
         localhost: "localhost", // Add localhost mapping
       };
 
-      const networksToUse = chains
-        .map((chain) => {
-          const network =
-            networkMap[chain.toLowerCase()] || chain.toLowerCase();
+      const networksToUse = normalizedChains
+        .map((chainKey) => {
+          const network = networkMap[chainKey] || chainKey;
 
-          if (chain.toLowerCase() === "localhost") {
+          if (chainKey === "localhost") {
             return { chain: "localhost", network: "localhost" };
           }
 
-          if (!networkMap[chain.toLowerCase()]) {
+          if (!networkMap[chainKey]) {
             console.warn(
-              chalk.yellow(`⚠️  Unknown chain: ${chain}, skipping...`)
+              chalk.yellow(`⚠️  Unknown chain: ${chainKey}, skipping...`)
             );
             return null;
           }
@@ -95,12 +134,12 @@ export default function registerDeploy(program) {
           if (!opts.testnet && network !== "polygon") {
             console.warn(
               chalk.yellow(
-                `⚠️  Mainnet deployment for ${chain} requires proper RPC configuration. Using testnet instead.`
+                `⚠️  Mainnet deployment for ${chainKey} requires proper RPC configuration. Using testnet instead.`
               )
             );
           }
 
-          return { chain: chain.toLowerCase(), network };
+          return { chain: chainKey, network };
         })
         .filter(Boolean);
 
@@ -110,7 +149,7 @@ export default function registerDeploy(program) {
       }
 
       console.log(chalk.green(`📋 Deployment Summary:`));
-      console.log(chalk.gray(`   Contract: ${contractFile}`));
+  console.log(chalk.gray(`   Contract: ${contractFile}${usingDefaultScript ? " (default script)" : ""}`));
       console.log(
         chalk.gray(
           `   Networks: ${networksToUse.map((n) => n.network).join(", ")}`

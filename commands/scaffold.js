@@ -112,6 +112,15 @@ module.exports = {
     localhost: {
       url: "http://127.0.0.1:8545"
     },
+    // Celo networks (ready for raze deploy)
+    celo: {
+      url: process.env.CELO_RPC_URL || "https://forno.celo.org",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    celo_sepolia: {
+      url: process.env.CELO_SEPOLIA_RPC_URL || "https://rpc.ankr.com/celo_sepolia",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
     sepolia: {
       url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR_INFURA_KEY",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
@@ -130,7 +139,29 @@ module.exports = {
     }
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY,
+      sepolia: process.env.ETHERSCAN_API_KEY,
+    },
+    // Add Celo explorers for verification via customChains if needed later
+    customChains: [
+      {
+        network: "celo",
+        chainId: 42220,
+        urls: {
+          apiURL: process.env.CELO_EXPLORER_API_URL || "https://explorer.celo.org/mainnet/api",
+          browserURL: process.env.CELO_BROWSER_URL || "https://explorer.celo.org/mainnet",
+        },
+      },
+      {
+        network: "celo_sepolia",
+        chainId: 44787,
+        urls: {
+          apiURL: process.env.CELO_SEPOLIA_EXPLORER_API_URL || "https://explorer.celo.org/sepolia/api",
+          browserURL: process.env.CELO_SEPOLIA_BROWSER_URL || "https://explorer.celo.org/sepolia",
+        },
+      },
+    ],
   }
 };
 `;
@@ -174,12 +205,14 @@ module.exports = {
     fs.writeFileSync(path.join(scriptsDir, "deploy.js"), deployContent);
 
     // Create .env.example
-    const envExample = `# Private key for deployment (without 0x prefix)
+  const envExample = `# Private key for deployment (without 0x prefix)
 PRIVATE_KEY=your_private_key_here
 
 # RPC URLs
 SEPOLIA_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
 POLYGON_URL=https://polygon-rpc.com
+CELO_RPC_URL=https://forno.celo.org
+CELO_SEPOLIA_RPC_URL=https://rpc.ankr.com/celo_sepolia
 
 # API Keys
 ETHERSCAN_API_KEY=your_etherscan_api_key
