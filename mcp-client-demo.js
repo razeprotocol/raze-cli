@@ -146,6 +146,18 @@ class RazeMCPClient {
       port: 3000,
     });
 
+    // Test 7: Get token balance (native if no token provided)
+    await this.callTool("get_token_balance", {
+      address: process.env.TEST_ADDRESS || "0x0000000000000000000000000000000000000000",
+    });
+
+    // Test 8: Estimate a simple transaction (to self, no data)
+    await this.callTool("estimate_transaction", {
+      from: process.cwd(),
+      to: process.env.TEST_ADDRESS || "0x0000000000000000000000000000000000000000",
+      data: "0x",
+    });
+
     console.log(chalk.green("\n🎉 MCP Demo completed successfully!"));
     console.log(
       chalk.gray(

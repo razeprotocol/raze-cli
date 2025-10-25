@@ -14,9 +14,16 @@ const exec = promisify(_exec);
 export default function registerMcp(program) {
   program
     .command("mcp")
-    .description("Model Context Protocol (MCP) helpers for Celo: install | config | status | start | run-stub")
-    .argument("[action]", "Action: install|config|status|start|run-stub")
+    .description("Model Context Protocol (MCP) helpers for Celo: install | config | status | start | run-stub | read | write |call|balance|estimate|exec")
+    .argument("[action]", "Action: install|config|status|start|run-stub|read|write|call|balance|estimate|exec")
     .option("--port <port>", "Port to run MCP server on", "5005")
+    .option("--path <path>", "File path for read/write/list operations")
+    .option("--content <content>", "Content for write_file (string)")
+    .option("--to <to>", "Contract address or tx recipient")
+    .option("--data <data>", "Hex-encoded call data or tx data")
+    .option("--address <address>", "Address for balance/account queries")
+    .option("--token <token>", "Token contract address for token balance")
+    .option("--cmd <cmd>", "Command string for execute_command (limited)")
     .action(async (action, opts) => {
       if (!action) {
         const ans = await inquirer.prompt([
@@ -36,10 +43,64 @@ export default function registerMcp(program) {
           return await startOfficialOrStub(opts.port);
         case "run-stub":
           return await startStub(opts.port);
+        case "read":
+          return await cliRead(opts.path, opts.port);
+        case "write":
+          return await cliWrite(opts.path, opts.content, opts.port);
+        case "call":
+          return await cliCall(opts.to, opts.data, opts.port);
+        case "balance":
+          return await cliBalance(opts.address, opts.token, opts.port);
+        case "estimate":
+          return await cliEstimate(opts.port, { to: opts.to, data: opts.data });
+        case "exec":
+          return await cliExec(opts.cmd, opts.port);
         default:
           console.log(chalk.yellow("Unknown mcp action; use install|config|status|start|run-stub"));
       }
     });
+}
+
+async function httpRequest(path, method = 'GET', body = null, port = 5005) {
+  const url = `http://localhost:${port}${path}`;
+  try {
+    const res = await fetch(url, body ? { method, body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : undefined);
+    const json = await res.json();
+    console.log(json);
+    return json;
+  } catch (e) {
+    console.error(chalk.red('Request failed:'), e.message);
+  }
+}
+
+async function cliRead(p, port = 5005) {
+  if (!p) return console.log(chalk.yellow('Use --path to specify file to read'));
+  return await httpRequest(`/read_file?path=${encodeURIComponent(p)}`, 'GET', null, port);
+}
+
+async function cliWrite(p, content, port = 5005) {
+  if (!p || typeof content !== 'string') return console.log(chalk.yellow('Use --path and --content to write a file'));
+  return await httpRequest('/write_file', 'POST', { path: p, content }, port);
+}
+
+async function cliCall(to, data, port = 5005) {
+  if (!to || !data) return console.log(chalk.yellow('Use --to and --data to call a contract function'));
+  return await httpRequest('/call_contract_function', 'POST', { to, data }, port);
+}
+
+async function cliBalance(address, token, port = 5005) {
+  if (!address) return console.log(chalk.yellow('Use --address to query balance'));
+  const path = token ? `/get_token_balance?address=${encodeURIComponent(address)}&token=${encodeURIComponent(token)}` : `/get_token_balance?address=${encodeURIComponent(address)}`;
+  return await httpRequest(path, 'GET', null, port);
+}
+
+async function cliEstimate(port = 5005, tx = {}) {
+  return await httpRequest('/estimate_transaction', 'POST', tx, port);
+}
+
+async function cliExec(cmd, port = 5005) {
+  if (!cmd) return console.log(chalk.yellow('Use --cmd to execute a (whitelisted) command'));
+  return await httpRequest('/execute', 'POST', { tool: 'execute_command', args: { command: cmd } }, port);
 }
 
 async function printInstall() {

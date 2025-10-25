@@ -89,6 +89,142 @@ app.get("/get_account", async (req, res) => {
   }
 });
 
+// Get token balance for an address. Supports native balance (no token param)
+// or ERC-20 token balance when `token` (contract address) is provided.
+app.get("/get_token_balance", async (req, res) => {
+  const address = req.query.address;
+  const token = req.query.token;
+  if (!address) return res.status(400).json({ error: "address required" });
+
+  try {
+    if (!token) {
+      // Native CELO/currency balance
+      const bal = await rpcCall("eth_getBalance", [address, "latest"]);
+      return res.json({ address, balance: bal.result });
+    }
+
+    // ERC-20 balanceOf(address) -> 0x70a08231 + padded address
+    const cleanAddr = address.startsWith("0x") ? address.slice(2) : address;
+    const padded = cleanAddr.padStart(64, "0");
+    const data = `0x70a08231${padded}`;
+
+    const call = await rpcCall("eth_call", [
+      { to: token, data },
+      "latest",
+    ]);
+
+    const result = call.result || call;
+    const hex = typeof result === "string" ? result : result.result;
+    const balance = hex && hex !== "0x" ? BigInt(hex).toString() : "0";
+    return res.json({ address, token, balance });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Call a contract read-only function (eth_call). Accepts POST body { to, data, from? }
+app.post("/call_contract_function", async (req, res) => {
+  const { to, data, from } = req.body || {};
+  if (!to || !data) return res.status(400).json({ error: "to and data required" });
+
+  try {
+    const callObj = { to, data };
+    if (from) callObj.from = from;
+    const r = await rpcCall("eth_call", [callObj, "latest"]);
+    return res.json({ success: true, result: r.result || r });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Estimate gas for a transaction object. POST body: { from, to, data, value }
+app.post("/estimate_transaction", async (req, res) => {
+  const tx = req.body || {};
+  if (!tx.to && !tx.data) return res.status(400).json({ error: "to or data required" });
+  try {
+    const r = await rpcCall("eth_estimateGas", [tx]);
+    return res.json({ success: true, gasEstimate: r.result || r });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// File and system helper endpoints for CLI convenience
+app.get('/read_file', async (req, res) => {
+  try {
+    const p = req.query.path;
+    if (!p) return res.status(400).json({ error: 'path required' });
+    const fp = path.resolve(process.cwd(), p);
+    if (!fs.existsSync(fp)) return res.status(404).json({ error: 'not found' });
+    const content = fs.readFileSync(fp, 'utf8');
+    return res.json({ success: true, path: fp, content });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/write_file', async (req, res) => {
+  try {
+    const { path: p, content } = req.body || {};
+    if (!p || typeof content !== 'string') return res.status(400).json({ error: 'path and content required' });
+    const fp = path.resolve(process.cwd(), p);
+    fs.mkdirSync(path.dirname(fp), { recursive: true });
+    fs.writeFileSync(fp, content, 'utf8');
+    return res.json({ success: true, path: fp });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/list_directory', async (req, res) => {
+  try {
+    const p = req.query.path || process.cwd();
+    const fp = path.resolve(process.cwd(), p);
+    if (!fs.existsSync(fp)) return res.status(404).json({ error: 'not found' });
+    const items = fs.readdirSync(fp);
+    return res.json({ success: true, path: fp, items });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/get_system_info', async (req, res) => {
+  try {
+    const osMod = await import('os');
+    return res.json({
+      platform: osMod.platform(),
+      arch: osMod.arch(),
+      cpus: osMod.cpus().length,
+      totalMemory: osMod.totalmem(),
+      freeMemory: osMod.freemem(),
+      uptime: osMod.uptime(),
+      nodeVersion: process.version,
+      cwd: process.cwd(),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/check_port', async (req, res) => {
+  try {
+    const port = parseInt(req.query.port, 10);
+    if (!port) return res.status(400).json({ error: 'port required' });
+    const net = await import('net');
+    const server = net.createServer();
+    server.once('error', () => {
+      return res.json({ inUse: true });
+    });
+    server.once('listening', () => {
+      server.close();
+      return res.json({ inUse: false });
+    });
+    server.listen(port);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Basic execute endpoint: for safety this is a no-op that echoes the requested tool and args.
 app.post("/execute", async (req, res) => {
   const { tool, args } = req.body || {};
@@ -323,6 +459,12 @@ class RazeMCPServer {
             return await this.launchApplication(args);
           case "check_port":
             return await this.checkPort(args);
+          case "get_token_balance":
+            return await this.getTokenBalance(args);
+          case "call_contract_function":
+            return await this.callContractFunction(args);
+          case "estimate_transaction":
+            return await this.estimateTransaction(args);
           case "kill_process":
             return await this.killProcess(args);
           default:
@@ -741,6 +883,51 @@ class RazeMCPServer {
     } catch (error) {
       return { error: error.message };
     }
+  }
+
+  // New MCP tool implementations
+  async getTokenBalance(args) {
+    const { address, token } = args || {};
+    if (!address) throw new Error("address required");
+
+    if (!token) {
+      const bal = await rpcCall("eth_getBalance", [address, "latest"]);
+      return {
+        content: [
+          { type: "text", text: JSON.stringify({ address, balance: bal.result }) },
+        ],
+      };
+    }
+
+    const cleanAddr = address.startsWith("0x") ? address.slice(2) : address;
+    const padded = cleanAddr.padStart(64, "0");
+    const data = `0x70a08231${padded}`;
+    const call = await rpcCall("eth_call", [{ to: token, data }, "latest"]);
+    const hex = call.result || call;
+    const balance = hex && hex !== "0x" ? BigInt(hex).toString() : "0";
+    return {
+      content: [
+        { type: "text", text: JSON.stringify({ address, token, balance }) },
+      ],
+    };
+  }
+
+  async callContractFunction(args) {
+    const { to, data, from } = args || {};
+    if (!to || !data) throw new Error("to and data required");
+    const callObj = { to, data };
+    if (from) callObj.from = from;
+    const r = await rpcCall("eth_call", [callObj, "latest"]);
+    return {
+      content: [{ type: "text", text: JSON.stringify({ result: r.result || r }) }],
+    };
+  }
+
+  async estimateTransaction(args) {
+    const tx = args || {};
+    if (!tx.to && !tx.data) throw new Error("to or data required");
+    const r = await rpcCall("eth_estimateGas", [tx]);
+    return { content: [{ type: "text", text: JSON.stringify({ gasEstimate: r.result || r }) }] };
   }
 
   async start() {
