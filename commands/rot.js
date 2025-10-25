@@ -13,7 +13,7 @@ const execAsync = promisify(exec);
 class RotAgent {
   constructor(apiKey) {
     this.apiKey = apiKey;
-    this.model = "gemini-1.5-flash";
+    this.model = "gemini-2.5-flash";
   }
 
   async analyzeRequest(prompt) {
