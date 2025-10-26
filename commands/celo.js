@@ -25,17 +25,21 @@ export default function registerCelo(program) {
   .option("--metadata", "Fetch CIP-8 metadata during identity lookup")
   .option("--extended", "Scan extended token balances during identity lookup")
     .action(async (action, opts, cmd) => {
-      if (!action) {
-        const ans = await inquirer.prompt([
-          {
-            type: "list",
-            name: "action",
-            message: "Select a Celo feature:",
-            choices: ["scaffold", "analytics", "rates", "identity", "nlp", "login", "logs"],
-          },
-        ]);
-        action = ans.action;
-      }
+        if (!action) {
+          // If a session exists, hide the login option and show profile/logout instead
+          const session = loadSession();
+          const base = ["scaffold", "analytics", "rates", "identity", "nlp", "logs"];
+          const choices = session ? [...base, "profile", "logout"] : [...base, "login"];
+          const ans = await inquirer.prompt([
+            {
+              type: "list",
+              name: "action",
+              message: "Select a Celo feature:",
+              choices,
+            },
+          ]);
+          action = ans.action;
+        }
 
       switch (action) {
         case "scaffold":
@@ -55,6 +59,12 @@ export default function registerCelo(program) {
           break;
         case "login":
           await handleLogin(opts);
+          break;
+        case "profile":
+          await handleProfile(opts);
+          break;
+        case "logout":
+          await handleLogout(opts);
           break;
         case "logs":
           await handleLogs(opts);
@@ -765,71 +775,109 @@ async function nlpDoEstimate(mcpUrl, parsed) {
 // Login by phone number (CIP-8 style lookup)
 // ----------------
 async function handleLogin(opts) {
+  // Login: accept a phone number, try to resolve wallet address via CIP-8 registry,
+  // and persist phone + optional address into the session file.
   const ans = await inquirer.prompt([
     { type: 'input', name: 'phone', message: 'Phone number (include country code, e.g. +1415555...):' },
-    { type: 'list', name: 'network', message: 'Network', choices: ['mainnet', 'sepolia'], default: opts.network || 'mainnet' },
+    { type: 'list', name: 'network', message: 'Network', choices: ['mainnet', 'sepolia'], default: opts.network || 'sepolia' },
   ]);
 
   const phoneRaw = String(ans.phone || '').trim();
   if (!phoneRaw) return console.log(chalk.yellow('No phone number provided'));
 
-  const provider = getProvider(ans.network);
-  const spinner = ora('Looking up Accounts registry for phone identifier...').start();
-
+  let resolvedAddress = null;
   try {
-    const registry = new (await import('ethers')).Contract(DEFAULT_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
-
-    // Build candidate identifiers (naive): exact, tel:+..., plain digits, phone:...
-    const digits = phoneRaw.replace(/[^0-9+]/g, '');
-    const normalized = digits.startsWith('+') ? digits : (digits ? `+${digits}` : phoneRaw);
-    const candidates = [phoneRaw, normalized, `tel:${normalized}`, `phone:${normalized}`].filter(Boolean);
-
-    let found = null;
-    for (const id of candidates) {
-      try {
-        const addr = await registry.getAddressForString(id);
-        if (addr && addr !== (await import('ethers')).ZeroAddress) {
-          found = { identifier: id, address: addr };
-          break;
-        }
-      } catch (e) {
-        // ignore - try next candidate
-      }
-    }
-
-    if (!found) {
-      spinner.fail('No account mapped to that phone identifier in the registry');
-      console.log(chalk.gray('Tried candidates:'), candidates);
-      return;
-    }
-
-    spinner.succeed('Account resolved');
-    console.log(chalk.green(`Resolved ${found.identifier} -> ${found.address}`));
-
-    const infoSpinner = ora('Fetching identity & balances...').start();
-    const info = await identifyAddress(found.address, provider);
-    infoSpinner.succeed('Fetched identity');
-    console.log(chalk.blue(`
-Address: ${found.address}
-Type: ${info.isContract ? 'Contract' : 'EOA'}`));
-    console.log('Balances:');
-    console.log(`• CELO: ${chalk.bold(info.balances.CELO)}`);
-    if (info.balances.cUSD != null) console.log(`• cUSD: ${chalk.bold(info.balances.cUSD)}`);
-
-    // Persist session locally
+    const provider = getProvider(ans.network);
+    const spinner = ora('Attempting to resolve phone via CIP-8 registry (on-chain)...').start();
     try {
-      const home = process.env.HOME || process.env.USERPROFILE || process.cwd();
-      const dir = path.join(home, '.raze');
-      fs.mkdirSync(dir, { recursive: true });
-      const sess = { address: found.address, identifier: found.identifier, network: ans.network, timestamp: Date.now() };
-      fs.writeFileSync(path.join(dir, 'celo-session.json'), JSON.stringify(sess, null, 2), 'utf8');
-      console.log(chalk.green(`Saved session to ${path.join(dir, 'celo-session.json')}`));
+      const registry = new ethers.Contract(DEFAULT_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+      const digits = phoneRaw.replace(/[^0-9+]/g, '');
+      const normalized = digits.startsWith('+') ? digits : (digits ? `+${digits}` : phoneRaw);
+      const candidates = [phoneRaw, normalized, `tel:${normalized}`, `phone:${normalized}`].filter(Boolean);
+      for (const id of candidates) {
+        try {
+          const addr = await registry.getAddressForString(id);
+          if (addr && addr !== ethers.ZeroAddress) {
+            resolvedAddress = addr;
+            break;
+          }
+        } catch (e) {
+          // ignore and try next candidate
+        }
+      }
+      if (resolvedAddress) {
+        spinner.succeed(`Resolved ${phoneRaw} -> ${resolvedAddress}`);
+      } else {
+        spinner.info('No address mapped for that phone in registry');
+      }
     } catch (e) {
-      console.log(chalk.yellow('Could not save session file:'), e.message);
+      spinner.fail('Registry lookup failed');
     }
   } catch (e) {
-    spinner.fail('Lookup failed');
-    console.error(chalk.red(e.message || e));
+    // provider creation or lookup failed; continue to prompt user for manual address
+  }
+
+  // If we couldn't resolve, ask the user to optionally enter an address to store
+  if (!resolvedAddress) {
+    const ask = await inquirer.prompt([
+      { type: 'confirm', name: 'enter', message: 'Could not auto-resolve an address. Would you like to enter a wallet address to save with this session?', default: false },
+    ]);
+    if (ask.enter) {
+      const a = await inquirer.prompt([{ type: 'input', name: 'address', message: 'Wallet address (0x...):', validate: (v) => (/^0x[a-fA-F0-9]{40}$/.test(v) ? true : 'Invalid address') }]);
+      resolvedAddress = a.address;
+    }
+  }
+
+  try {
+    const home = process.env.HOME || process.env.USERPROFILE || process.cwd();
+    const dir = path.join(home, '.raze');
+    fs.mkdirSync(dir, { recursive: true });
+    const sess = {
+      phone: phoneRaw,
+      network: ans.network || 'sepolia',
+      address: resolvedAddress || null,
+      loggedInAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(path.join(dir, 'celo-session.json'), JSON.stringify(sess, null, 2), 'utf8');
+    console.log(chalk.green(`Logged in as ${phoneRaw}${resolvedAddress ? ` -> ${resolvedAddress}` : ''} (session saved to ${path.join(dir, 'celo-session.json')})`));
+  } catch (e) {
+    console.log(chalk.red('Failed to save session:'), e.message || e);
+  }
+}
+
+// Session helpers
+function getSessionPath() {
+  const home = process.env.HOME || process.env.USERPROFILE || process.cwd();
+  const dir = path.join(home, '.raze');
+  return path.join(dir, 'celo-session.json');
+}
+
+function loadSession() {
+  try {
+    const p = getSessionPath();
+    if (!fs.existsSync(p)) return null;
+    const raw = fs.readFileSync(p, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function handleProfile(opts) {
+  const sess = loadSession();
+  if (!sess) return console.log(chalk.yellow('No active session. Use `raze celo login` to sign in.'));
+  console.log(chalk.cyan('Celo session:'));
+  console.log(JSON.stringify(sess, null, 2));
+}
+
+async function handleLogout(opts) {
+  const p = getSessionPath();
+  if (!fs.existsSync(p)) return console.log(chalk.yellow('No active session to logout from'));
+  try {
+    fs.unlinkSync(p);
+    console.log(chalk.green('Logged out — session removed'));
+  } catch (e) {
+    console.log(chalk.red('Failed to remove session file:'), e.message || e);
   }
 }
 
