@@ -1,10 +1,12 @@
 import chalk from "chalk";
 import ora from "ora";
+import fetch from 'node-fetch';
 import inquirer from "inquirer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getProvider, getWebSocketProvider, getStableRates, getAnalytics, identifyAddress, CELO_NETWORKS, getCIP8MetadataURL, fetchCIP8Metadata, loadLocalTokenList, scanTokenBalances } from "../utils/celo.js";
+import { getProvider, getWebSocketProvider, getStableRates, getAnalytics, identifyAddress, CELO_NETWORKS, getCIP8MetadataURL, fetchCIP8Metadata, loadLocalTokenList, scanTokenBalances, REGISTRY_ABI, DEFAULT_REGISTRY_ADDRESS } from "../utils/celo.js";
+import { ethers } from "ethers";
 import { exec as _exec } from "child_process";
 import { promisify } from "util";
 const exec = promisify(_exec);
@@ -29,7 +31,7 @@ export default function registerCelo(program) {
             type: "list",
             name: "action",
             message: "Select a Celo feature:",
-            choices: ["scaffold", "analytics", "rates", "identity"],
+            choices: ["scaffold", "analytics", "rates", "identity", "nlp", "login", "logs"],
           },
         ]);
         action = ans.action;
@@ -47,6 +49,15 @@ export default function registerCelo(program) {
           break;
         case "identity":
           await handleIdentity(opts);
+          break;
+        case "nlp":
+          await handleNLP(opts);
+          break;
+        case "login":
+          await handleLogin(opts);
+          break;
+        case "logs":
+          await handleLogs(opts);
           break;
         case "verify":
           await handleVerify(opts);
@@ -556,6 +567,367 @@ async function main() {
 
 main().catch((e) => { console.error(e); process.exit(1); });
 `;
+
+// ----------------
+// NLP helpers
+// ----------------
+async function handleNLP(opts) {
+  const prompt = opts.prompt || (await inquirer.prompt([{ name: 'prompt', message: 'Describe the Celo action ' }])).prompt;
+  if (!prompt) return console.log(chalk.yellow('No prompt provided'));
+  const mcpUrl = opts.mcp || process.env.MCP_HTTP_URL || 'http://localhost:5005';
+
+  console.log(chalk.cyan(`Celo NLP — "${prompt}" (MCP: ${mcpUrl})`));
+
+  let parsed = null;
+
+  // Check MCP health first; if unavailable we'll fallback to local provider for read-only ops
+  let mcpAlive = false;
+  try {
+    const h = await fetch(`${mcpUrl}/health`, { method: 'GET', timeout: 3000 });
+    if (h.ok) mcpAlive = true;
+  } catch (e) {
+    // not alive
+  }
+
+  if (mcpAlive) {
+    try {
+      const resp = await fetch(`${mcpUrl}/tools/parse-nlp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+      if (resp.ok) parsed = await resp.json();
+    } catch (e) {
+      // parse endpoint failed; continue to fallback
+    }
+  } else {
+    console.log(chalk.yellow(`MCP HTTP not reachable at ${mcpUrl} — falling back to local provider for read-only ops.`));
+  }
+
+  if (!parsed) parsed = nlpFallbackParse(prompt);
+
+  console.log(chalk.gray('Parsed:'), parsed);
+
+  if (!opts.yes && parsed.action && parsed.action !== 'balance') {
+    const ok = await nlpConfirm(parsed);
+    if (!ok) return console.log(chalk.yellow('Aborted'));
+  }
+
+  try {
+    const action = (parsed.action || '').toLowerCase();
+    if (!mcpAlive) {
+      // Fallback behaviors when MCP unreachable
+      if (action === 'balance') {
+        // Use local provider to fetch balances
+        const addr = parsed.address || (await inquirer.prompt([{ name: 'addr', message: 'Address to check balance:', type: 'input' }])).addr;
+        const provider = getProvider(opts.network || 'mainnet');
+        const info = await identifyAddress(addr, provider);
+        console.log(chalk.green(JSON.stringify(info.balances, null, 2)));
+        return;
+      }
+
+      if (action === 'send') {
+        // Attempt to send using local PRIVATE_KEY if available
+        if (!process.env.PRIVATE_KEY) {
+          console.log(chalk.red('MCP not available and no PRIVATE_KEY in environment. Cannot send transaction.'));
+          return;
+        }
+        const provider = getProvider(opts.network || 'mainnet');
+        const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+        const to = parsed.to || (await inquirer.prompt([{ name: 'to', message: 'Recipient (0x...):' }])).to;
+        const amount = parsed.amount || (await inquirer.prompt([{ name: 'amount', message: 'Amount to send:' }])).amount;
+        const tx = await wallet.sendTransaction({ to, value: ethers.parseEther(String(amount)) });
+        console.log(chalk.green('Transaction sent. Hash:'), tx.hash);
+        await tx.wait();
+        console.log(chalk.green('Transaction confirmed'));
+        return;
+      }
+
+      // For swap/estimate without MCP, inform user
+      console.log(chalk.red('MCP not reachable — advanced operations (swap/estimate) require the MCP server or a configured wallet.'));
+      return;
+    }
+
+    // MCP is alive — call MCP endpoints
+    switch (action) {
+      case 'balance':
+        await nlpDoBalance(mcpUrl, parsed);
+        break;
+      case 'send':
+        await nlpDoSend(mcpUrl, parsed);
+        break;
+      case 'swap':
+        await nlpDoSwap(mcpUrl, parsed);
+        break;
+      case 'estimate':
+        await nlpDoEstimate(mcpUrl, parsed);
+        break;
+      default:
+        console.log(chalk.yellow('Could not map prompt to an action. Showing parsed output for debugging:'));
+        console.log(parsed);
+    }
+  } catch (e) {
+    console.error(chalk.red('Execution error:'), e.message || e);
+  }
+}
+
+function nlpFallbackParse(text) {
+  const t = (text || '').toLowerCase();
+  if (t.includes('balance')) {
+    const m = text.match(/0x[a-fA-F0-9]{40}/);
+    return { action: 'balance', address: m ? m[0] : null };
+  }
+  if (t.includes('swap') || t.includes('exchange')) {
+    const amt = (text.match(/(\d+\.?\d*)/) || [null])[0];
+    const toToken = /cusd|cUSD/i.test(text) ? 'cUSD' : 'CELO';
+    return { action: 'swap', amount: amt || null, from: 'CELO', to: toToken, slippage: 1 };
+  }
+  if (t.includes('send') || t.includes('transfer')) {
+    const mAmt = text.match(/(\d+\.?\d*)\s*(celo|cUSD|cusd)?/i);
+    const mAddr = text.match(/0x[a-fA-F0-9]{40}/);
+    return {
+      action: 'send',
+      amount: mAmt ? mAmt[1] : null,
+      token: mAmt && mAmt[2] ? mAmt[2] : 'CELO',
+      to: mAddr ? mAddr[0] : null,
+    };
+  }
+  if (t.includes('estimate') || t.includes('gas')) {
+    return { action: 'estimate', text };
+  }
+  return { action: null, text };
+}
+
+async function nlpConfirm(parsed) {
+  const ans = await inquirer.prompt([{ type: 'confirm', name: 'ok', message: `Proceed with action?\n${JSON.stringify(parsed, null, 2)}` }]);
+  return ans.ok;
+}
+
+async function nlpDoBalance(mcpUrl, parsed) {
+  const addr = parsed.address || (await inquirer.prompt([{ name: 'addr', message: 'Address to check balance:', type: 'input' }])).addr;
+  const spinner = ora('Checking balance...').start();
+  try {
+    const res = await fetch(`${mcpUrl}/chain/balance?address=${encodeURIComponent(addr)}`);
+    const j = await res.json();
+    spinner.succeed('Balance fetched');
+    console.log(chalk.green(JSON.stringify(j, null, 2)));
+  } catch (e) {
+    spinner.fail('Failed to fetch balance');
+    throw e;
+  }
+}
+
+async function nlpDoSend(mcpUrl, parsed) {
+  if (!parsed.to) {
+    const ans = await inquirer.prompt([{ name: 'to', message: 'Recipient address (0x...):', type: 'input' }]);
+    parsed.to = ans.to;
+  }
+  if (!parsed.amount) {
+    const ans = await inquirer.prompt([{ name: 'amount', message: 'Amount to send:', type: 'input' }]);
+    parsed.amount = ans.amount;
+  }
+  const spinner = ora('Submitting transaction via MCP...').start();
+  try {
+    const resp = await fetch(`${mcpUrl}/chain/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: parsed.to, amount: parsed.amount, token: parsed.token || 'CELO' }) });
+    const j = await resp.json();
+    spinner.succeed('Transaction submitted');
+    console.log(chalk.green(JSON.stringify(j, null, 2)));
+  } catch (e) {
+    spinner.fail('Failed to submit transaction');
+    throw e;
+  }
+}
+
+async function nlpDoSwap(mcpUrl, parsed) {
+  const spinner = ora('Preparing swap via MCP...').start();
+  try {
+    const body = { from: parsed.from || 'CELO', to: parsed.to || 'cUSD', amount: parsed.amount || '0', slippage: parsed.slippage || 1 };
+    const resp = await fetch(`${mcpUrl}/chain/swap`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await resp.json();
+    spinner.succeed('Swap result');
+    console.log(chalk.green(JSON.stringify(j, null, 2)));
+  } catch (e) {
+    spinner.fail('Swap failed');
+    throw e;
+  }
+}
+
+async function nlpDoEstimate(mcpUrl, parsed) {
+  const spinner = ora('Estimating gas via MCP...').start();
+  try {
+    const resp = await fetch(`${mcpUrl}/chain/estimate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: parsed.text || parsed }) });
+    const j = await resp.json();
+    spinner.succeed('Estimate received');
+    console.log(chalk.green(JSON.stringify(j, null, 2)));
+  } catch (e) {
+    spinner.fail('Estimate failed');
+    throw e;
+  }
+}
+
+// ----------------
+// Login by phone number (CIP-8 style lookup)
+// ----------------
+async function handleLogin(opts) {
+  const ans = await inquirer.prompt([
+    { type: 'input', name: 'phone', message: 'Phone number (include country code, e.g. +1415555...):' },
+    { type: 'list', name: 'network', message: 'Network', choices: ['mainnet', 'sepolia'], default: opts.network || 'mainnet' },
+  ]);
+
+  const phoneRaw = String(ans.phone || '').trim();
+  if (!phoneRaw) return console.log(chalk.yellow('No phone number provided'));
+
+  const provider = getProvider(ans.network);
+  const spinner = ora('Looking up Accounts registry for phone identifier...').start();
+
+  try {
+    const registry = new (await import('ethers')).Contract(DEFAULT_REGISTRY_ADDRESS, REGISTRY_ABI, provider);
+
+    // Build candidate identifiers (naive): exact, tel:+..., plain digits, phone:...
+    const digits = phoneRaw.replace(/[^0-9+]/g, '');
+    const normalized = digits.startsWith('+') ? digits : (digits ? `+${digits}` : phoneRaw);
+    const candidates = [phoneRaw, normalized, `tel:${normalized}`, `phone:${normalized}`].filter(Boolean);
+
+    let found = null;
+    for (const id of candidates) {
+      try {
+        const addr = await registry.getAddressForString(id);
+        if (addr && addr !== (await import('ethers')).ZeroAddress) {
+          found = { identifier: id, address: addr };
+          break;
+        }
+      } catch (e) {
+        // ignore - try next candidate
+      }
+    }
+
+    if (!found) {
+      spinner.fail('No account mapped to that phone identifier in the registry');
+      console.log(chalk.gray('Tried candidates:'), candidates);
+      return;
+    }
+
+    spinner.succeed('Account resolved');
+    console.log(chalk.green(`Resolved ${found.identifier} -> ${found.address}`));
+
+    const infoSpinner = ora('Fetching identity & balances...').start();
+    const info = await identifyAddress(found.address, provider);
+    infoSpinner.succeed('Fetched identity');
+    console.log(chalk.blue(`
+Address: ${found.address}
+Type: ${info.isContract ? 'Contract' : 'EOA'}`));
+    console.log('Balances:');
+    console.log(`• CELO: ${chalk.bold(info.balances.CELO)}`);
+    if (info.balances.cUSD != null) console.log(`• cUSD: ${chalk.bold(info.balances.cUSD)}`);
+
+    // Persist session locally
+    try {
+      const home = process.env.HOME || process.env.USERPROFILE || process.cwd();
+      const dir = path.join(home, '.raze');
+      fs.mkdirSync(dir, { recursive: true });
+      const sess = { address: found.address, identifier: found.identifier, network: ans.network, timestamp: Date.now() };
+      fs.writeFileSync(path.join(dir, 'celo-session.json'), JSON.stringify(sess, null, 2), 'utf8');
+      console.log(chalk.green(`Saved session to ${path.join(dir, 'celo-session.json')}`));
+    } catch (e) {
+      console.log(chalk.yellow('Could not save session file:'), e.message);
+    }
+  } catch (e) {
+    spinner.fail('Lookup failed');
+    console.error(chalk.red(e.message || e));
+  }
+}
+
+// ----------------
+// View transaction logs / history for an address
+// ----------------
+async function handleLogs(opts) {
+  const address = opts.address || (await inquirer.prompt([{ name: 'address', message: 'Address (0x...):', validate: (v) => (/^0x[a-fA-F0-9]{40}$/.test(v) ? true : 'Invalid address') }])).address;
+  const limit = Number(opts.limit || 20);
+  // Default to sepolia testnet unless explicitly overridden
+  const network = opts.network || 'sepolia';
+  const provider = getProvider(network);
+
+  const spinner = ora('Fetching transaction history (trying explorer API first)...').start();
+
+  // Try Blockscout / Explorer API first (Blockscout-compatible endpoints)
+  try {
+    // explorer.celo.org is Blockscout-based and supports the 'txlist' endpoint
+    const explorerBase = process.env.CELO_EXPLORER_API || (network === 'sepolia' ? 'https://explorer.celo.org/sepolia' : 'https://explorer.celo.org/mainnet');
+    const apiUrl = `${explorerBase}/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc`;
+    const resp = await fetch(apiUrl);
+    if (resp.ok) {
+      const j = await resp.json();
+      if (j && Array.isArray(j.result) && j.result.length) {
+        spinner.succeed(`Explorer API returned ${j.result.length} transactions`);
+        const rows = j.result.slice(0, limit).map((t) => {
+          return {
+            hash: t.hash || t.transactionHash || t.txhash || t.txHash,
+            block: t.blockNumber || t.block || null,
+            from: t.from,
+            to: t.to,
+            value: t.value ? Number(t.value) / 1e18 : null,
+            timestamp: t.timeStamp || t.timestamp || null,
+          };
+        });
+        console.log(chalk.green(`Showing ${rows.length} recent transactions (explorer):`));
+        rows.forEach((r) => console.log(`${r.hash}  block:${r.block}  ${r.from} -> ${r.to}  ${r.value ?? '?'} CELO`));
+        return;
+      }
+    }
+  } catch (e) {
+    // ignore and fallback to on-chain scan
+  }
+
+  spinner.text = 'Explorer API unavailable or returned no results; scanning recent blocks (may be slow)...';
+  try {
+    const head = await provider.getBlockNumber();
+    const depth = Number(opts.blocks || 5000);
+    const start = Math.max(0, head - depth);
+    const found = [];
+  const rpcUrl = (CELO_NETWORKS[network] && CELO_NETWORKS[network].rpcUrl) || CELO_NETWORKS.sepolia.rpcUrl;
+    const rpcCall = async (method, params) => {
+      const body = { jsonrpc: '2.0', id: Date.now(), method, params };
+      const res = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(`RPC ${res.status} ${res.statusText}`);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error.message || 'RPC error');
+      return j.result;
+    };
+    for (let bn = head; bn >= start; bn--) {
+      // Fetch full block with transactions over JSON-RPC
+      const hexBn = '0x' + bn.toString(16);
+      const block = await rpcCall('eth_getBlockByNumber', [hexBn, true]);
+      if (!block) continue;
+      const tsHex = block.timestamp;
+      const tsNum = typeof tsHex === 'string' && tsHex.startsWith('0x') ? parseInt(tsHex, 16) : Number(tsHex);
+      const ts = tsNum ? new Date(tsNum * 1000).toISOString() : null;
+      for (const tx of block.transactions || []) {
+        if (!tx) continue;
+        const from = (tx.from || '').toLowerCase();
+        const to = (tx.to || '').toLowerCase();
+        if (from === address.toLowerCase() || to === address.toLowerCase()) {
+          const valHex = tx.value || '0x0';
+          const val = typeof valHex === 'string' ? Number(ethers.formatEther(BigInt(valHex))) : Number(valHex);
+          found.push({ hash: tx.hash, blockNumber: bn, from: tx.from, to: tx.to, value: val, timestamp: ts });
+          if (found.length >= limit) break;
+        }
+      }
+      if (found.length >= limit) break;
+      // small progress update every 100 blocks
+      if ((head - bn) % 100 === 0) spinner.text = `Scanning blocks ${bn}..${head} — found ${found.length}`;
+      // be polite to the RPC endpoint
+      if ((head - bn) % 50 === 0) await sleep(25);
+    }
+
+    if (found.length) {
+      spinner.succeed(`Found ${found.length} transactions in recent ${depth} blocks`);
+      found.forEach((f) => console.log(`${f.hash}  block:${f.blockNumber}  ${f.from} -> ${f.to}  ${f.value} CELO`));
+    } else {
+      spinner.fail('No transactions found in scanned range');
+    }
+  } catch (e) {
+    spinner.fail('Failed to scan blocks');
+    console.error(chalk.red(e.message || e));
+  }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function handleVerify(opts) {
   // Simple wrapper to call Hardhat verify in the current project

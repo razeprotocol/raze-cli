@@ -24,20 +24,18 @@ export const CELO_NETWORKS = {
 
 export function getProvider(network = "mainnet") {
   const net = CELO_NETWORKS[network] || CELO_NETWORKS.mainnet;
-  return new ethers.JsonRpcProvider(net.rpcUrl, {
-    chainId: net.chainId,
-    name: net.name,
-  });
+  // Do not force a network object here — let the RPC respond with its chainId.
+  // Passing an explicit network object can cause `network changed` errors when a RPC's
+  // chainId doesn't match the expected value (common with testnets / proxies).
+  return new ethers.JsonRpcProvider(net.rpcUrl);
 }
 
 export function getWebSocketProvider(network = "mainnet") {
   const net = CELO_NETWORKS[network] || CELO_NETWORKS.mainnet;
   if (!ethers.WebSocketProvider) return null;
   try {
-    return new ethers.WebSocketProvider(net.wsUrl, {
-      chainId: net.chainId,
-      name: net.name,
-    });
+    // Let the websocket connection negotiate the network rather than forcing a chainId
+    return new ethers.WebSocketProvider(net.wsUrl);
   } catch (e) {
     return null;
   }
